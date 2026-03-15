@@ -17,7 +17,8 @@ class MainScene extends Phaser.Scene {
         // --- Device Detection ---
         this.isMobile = !this.sys.game.device.os.desktop || 
                         window.innerWidth < 800 || 
-                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                        (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform)); // iPad "Desktop" mode detection
         this.isPortrait = window.innerHeight > window.innerWidth;
 
         // Get game dimensions
@@ -167,6 +168,18 @@ class MainScene extends Phaser.Scene {
 
         // --- Apply CRT Shader ---
         this.cameras.main.setPostPipeline(CustomPipeline);
+
+        // Global Tap to Re-focus (Vital for Safari)
+        this.input.on('pointerdown', () => {
+            if (this.isMobile && this.mobileInput) {
+                this.mobileInput.style.pointerEvents = 'auto'; // Enable temporarily
+                this.mobileInput.focus();
+                // Safari needs it immediate, but a second attempt helps on some builds
+                setTimeout(() => { if (this.mobileInput) this.mobileInput.focus(); }, 10);
+                // Disable pointer events after focus so it doesn't block game taps
+                setTimeout(() => { if (this.mobileInput) this.mobileInput.style.pointerEvents = 'none'; }, 100);
+            }
+        });
 
         // --- Network Connection ---
         this.connectToServer();
@@ -369,9 +382,18 @@ class MainScene extends Phaser.Scene {
                 e.stopPropagation();
             }
             if (this.mobileInput) {
+                // Ensure it's reachable for the focus call
+                this.mobileInput.style.pointerEvents = 'auto';
                 this.mobileInput.focus();
-                // Some Android browsers need a second attempt or a small delay
-                setTimeout(() => this.mobileInput.focus(), 0);
+                
+                // Some Android/Safari variants need a small delay or second pull
+                setTimeout(() => {
+                    if (this.mobileInput) {
+                        this.mobileInput.focus();
+                        this.mobileInput.style.pointerEvents = 'none';
+                    }
+                }, 50);
+                
                 this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
             } else {
                 this.logMessage("ERROR: Input proxy missing.", COLORS.RED);
@@ -379,6 +401,7 @@ class MainScene extends Phaser.Scene {
         };
 
         nativeKbBtn.ontouchstart = triggerFocus;
+        nativeKbBtn.ontouchend = (e) => e.preventDefault(); // Prevent ghost clicks
         nativeKbBtn.onclick = triggerFocus; // Fallback for some browsers
 
         // Clean up on scene shutdown

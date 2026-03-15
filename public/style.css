@@ -23,16 +23,17 @@ canvas {
 }
 
 .hidden-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    left: 10px;
-    top: 10px;
-    opacity: 0.01;
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    left: 0;
+    top: 0;
+    opacity: 0;
     border: none;
     padding: 0;
     margin: 0;
-    z-index: -1;
+    z-index: 100; /* Keep above canvas but invisible */
+    pointer-events: none; /* Only enable when we want to capture focus */
 }
 
 .mobile-kbd-btn {
