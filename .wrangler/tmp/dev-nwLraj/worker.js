@@ -286,21 +286,17 @@ var GAME_EVENTS = [
     id: "anomaly_chronal_echo",
     title: "Chronal Echo",
     type: "anomaly",
-    text: "You detect a ghost signature of your own ship from hours ago. Scanning it yields `Scrap`, but causes a temporary `Energy` drain.",
+    text: "You detect a ghost signature of your own ship from hours ago. Scanning it yields Scrap, but causes a temporary Energy drain.",
     options: [
       {
         command: "investigate",
         requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        description: "Sync with the echo (-10 Energy, gain Scrap)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-          } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-          }
+          ship.energy -= 10;
+          const scrap = Math.floor(Math.random() * 10) + 5;
+          ship.scrap += scrap;
+          broadcast(`The echo phased through the hull, depositing ${scrap} units of temporal scrap. (-10 Energy)`, COLORS.GREEN);
           ship.currentEncounter = null;
         }, "execute")
       },
@@ -308,7 +304,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("The echo fades, leaving only static.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -318,20 +314,19 @@ var GAME_EVENTS = [
     id: "anomaly_probability_storm",
     title: "Probability Storm",
     type: "anomaly",
-    text: "Reality is unstable. Flipping a switch might grant `Credits` or instantly damage the `Hull`.",
+    text: "Reality is unstable. Flipping a switch might grant Credits or instantly damage the Hull.",
     options: [
       {
         command: "investigate",
         requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        description: "Roll the dice (50/50: +40 Credits or -15 Hull)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
+          if (Math.random() > 0.5) {
+            ship.credits += 40;
+            broadcast("Reality snaps in your favor! A cache of data-credits materializes. (+40 Credits)", COLORS.GREEN);
           } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+            ship.hull -= 15;
+            broadcast("The storm collapses inward! Hull buckles from impossible physics. (-15 Hull)", COLORS.RED);
           }
           ship.currentEncounter = null;
         }, "execute")
@@ -340,7 +335,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("You fly through untouched. Probably for the best.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -350,21 +345,17 @@ var GAME_EVENTS = [
     id: "anomaly_null_g_bubble",
     title: "Null-G Bubble",
     type: "anomaly",
-    text: "A localized field where gravity ceases to exist. Spending `Energy` allows you to harvest rare frictionless materials (`Credits`).",
+    text: "A localized field where gravity ceases to exist. Spending Energy allows you to harvest rare frictionless materials.",
     options: [
       {
         command: "investigate",
-        requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        requiredRoom: "engineering",
+        description: "Harvest materials (-8 Energy, gain Credits)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-          } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-          }
+          ship.energy -= 8;
+          const credits = Math.floor(Math.random() * 20) + 15;
+          ship.credits += credits;
+          broadcast(`Zero-gravity extraction successful. Harvested rare lubricants worth ${credits} Cr. (-8 Energy)`, COLORS.GREEN);
           ship.currentEncounter = null;
         }, "execute")
       },
@@ -372,7 +363,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("The bubble drifts away silently.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -382,21 +373,16 @@ var GAME_EVENTS = [
     id: "anomaly_whispering_nebula",
     title: "Whispering Nebula",
     type: "anomaly",
-    text: "Bizarre static on the comms sounds like voices predicting your next jump. Costs `Energy` to analyze, grants temporary immunity to the next Hazard.",
+    text: "Bizarre static on the comms sounds like voices predicting your next jump. Costs Energy to analyze, but reveals adjacent sector data.",
     options: [
       {
         command: "investigate",
         requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        description: "Analyze the whispers (-5 Energy, reveal intel)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-          } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-          }
+          ship.energy -= 5;
+          ship.fuel += 10;
+          broadcast("The whispers align into navigational data. Fuel reserves optimized. (+10 Fuel, -5 Energy)", COLORS.GREEN);
           ship.currentEncounter = null;
         }, "execute")
       },
@@ -404,7 +390,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("The voices fade into static.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -414,20 +400,19 @@ var GAME_EVENTS = [
     id: "anomaly_magnetic_monopole",
     title: "Magnetic Monopole",
     type: "anomaly",
-    text: "A rare physics anomaly. Catching it with the grabber arm yields immense `Credits` but risks severe `Hull` damage.",
+    text: "A rare physics anomaly. Catching it with the grabber arm yields immense Credits but risks severe Hull damage.",
     options: [
       {
         command: "investigate",
-        requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        requiredRoom: "cargo",
+        description: "Grab it (70% chance: +60 Credits, 30% chance: -25 Hull)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
+          if (Math.random() > 0.3) {
+            ship.credits += 60;
+            broadcast("CONTACT! The monopole is secured. Researchers will pay handsomely. (+60 Credits)", COLORS.GREEN);
           } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+            ship.hull -= 25;
+            broadcast("The monopole destabilizes and tears through the cargo bay! (-25 Hull)", COLORS.RED);
           }
           ship.currentEncounter = null;
         }, "execute")
@@ -436,7 +421,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("Too risky. You let it drift.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -446,21 +431,18 @@ var GAME_EVENTS = [
     id: "anomaly_time_dilation_field",
     title: "Time Dilation Field",
     type: "anomaly",
-    text: "Time slows down inside the cabin. You burn extra `Energy` keeping life support synced, but gain an extra turn in your next combat.",
+    text: "Time slows down inside the field. You burn extra Energy keeping life support synced, but gain a significant combat advantage.",
     options: [
       {
         command: "investigate",
-        requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        requiredRoom: "engineering",
+        description: "Enter the field (-15 Energy, reset all cooldowns)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-          } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+          ship.energy -= 15;
+          for (const room in ship.cooldowns) {
+            ship.cooldowns[room] = 0;
           }
+          broadcast("Time bends around the ship. All systems reset to ready state. (-15 Energy, All CDs cleared)", COLORS.GREEN);
           ship.currentEncounter = null;
         }, "execute")
       },
@@ -468,7 +450,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("You skirt the edge of the field. Time resumes normally.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -478,21 +460,15 @@ var GAME_EVENTS = [
     id: "anomaly_tachyon_burst",
     title: "Tachyon Burst",
     type: "anomaly",
-    text: "A sudden surge of faster-than-light particles instantly recharges your `Energy` fully, but scrambles your sensors for one jump.",
+    text: "A sudden surge of faster-than-light particles. Riding the wave fully recharges ship Energy.",
     options: [
       {
         command: "investigate",
         requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        description: "Ride the wave (Full Energy recharge)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-          } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-          }
+          ship.energy = ship.maxEnergy;
+          broadcast("The tachyon burst floods every capacitor. Energy reserves fully recharged!", COLORS.GREEN);
           ship.currentEncounter = null;
         }, "execute")
       },
@@ -500,7 +476,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("The particles scatter harmlessly into the void.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -510,20 +486,25 @@ var GAME_EVENTS = [
     id: "anomaly_micro_wormhole",
     title: "Micro-Wormhole",
     type: "anomaly",
-    text: "A tiny tear in space. Tossing in `Scrap` returns a refined item worth lots of `Credits`, but there's a 10% chance it returns a live explosive.",
+    text: "A tiny tear in space. Tossing in Scrap returns a refined item worth Credits, but there's a chance it returns a live explosive.",
     options: [
       {
         command: "investigate",
-        requiredRoom: "bridge",
-        description: "Investigate the anomaly (-5 Energy)",
+        requiredRoom: "cargo",
+        description: "Toss in 10 Scrap (80%: +50 Credits, 20%: -20 Hull)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          ship.energy.current -= 5;
-          const res = Math.random();
-          if (res > 0.5) {
-            ship.credits += 20;
-            broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
+          if (ship.scrap < 10) {
+            broadcast("Not enough scrap to sacrifice to the wormhole.", COLORS.RED);
+            ship.currentEncounter = null;
+            return;
+          }
+          ship.scrap -= 10;
+          if (Math.random() > 0.2) {
+            ship.credits += 50;
+            broadcast("The wormhole spits back a polished crystal worth 50 Credits! (-10 Scrap)", COLORS.GREEN);
           } else {
-            broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+            ship.hull -= 20;
+            broadcast("It returned a LIVE EXPLOSIVE! The blast rocks the cargo bay! (-10 Scrap, -20 Hull)", COLORS.RED);
           }
           ship.currentEncounter = null;
         }, "execute")
@@ -532,7 +513,7 @@ var GAME_EVENTS = [
         command: "ignore",
         description: "Leave it alone",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
-          broadcast("Ignored.", COLORS.GRAY);
+          broadcast("The tear seals itself shut.", COLORS.GRAY);
           ship.currentEncounter = null;
         }, "execute")
       }
@@ -1808,6 +1789,216 @@ var ROOMS = {
   "cargo": "Cargo Bay",
   "engineering": "Engineering"
 };
+var UPGRADE_EFFECTS = {
+  // BALLISTICS
+  "B01": { dmgFlat: 3 },
+  "B02": { dmgFlat: 5 },
+  "B03": { dmgFlat: 8, flatDmgReduce: 1 },
+  "B04": { dmgFlat: 6, scrapOnKill: 3 },
+  "B05": { dmgFlat: 7, evadeBonus: 0.03 },
+  "B06": { dmgFlat: 4, critBonus: 0.05 },
+  "B07": { dmgFlat: 2, autoDmg: 1 },
+  "B08": { dmgFlat: 4, critBonus: 0.03 },
+  "B09": { dmgFlat: 6, autoDmg: 1 },
+  "B10": { dmgFlat: 4, critBonus: 0.03 },
+  "B11": { mineBonus: 3, dmgFlat: 2 },
+  "B12": { dmgFlat: 15 },
+  "B13": { dmgFlat: 5, energyRegen: 0.1 },
+  "B14": { dmgFlat: 10 },
+  "B15": { critBonus: 0.1 },
+  "B16": { flatDmgReduce: 1 },
+  "B17": { dmgFlat: 20, hullCostPerAttack: 3 },
+  "B18": { dmgFlat: 6, autoDmg: 1 },
+  "B19": { dmgFlat: 2, mineBonus: 1 },
+  "B20": { dmgFlat: 4, critBonus: 0.02 },
+  "B21": { cooldownMod: -1 },
+  "B22": { dmgFlat: 4 },
+  "B23": { dmgFlat: 5, critBonus: 0.03 },
+  "B24": { dmgFlat: 3, energyRegen: 0.1 },
+  "B25": { dmgFlat: 30 },
+  // ENERGETICS
+  "E26": { dmgFlat: 4 },
+  "E27": { dmgFlat: 5, shieldAbsorb: 2 },
+  "E28": { dmgFlat: 6, autoDmg: 1 },
+  "E29": { dmgFlat: 8, critBonus: 0.05 },
+  "E30": { dmgFlat: 5, critBonus: 0.05 },
+  "E31": { dmgFlat: 4, autoDmg: 1 },
+  "E32": { dmgFlat: 12 },
+  "E33": { dmgFlat: 6 },
+  "E34": { dmgFlat: 4, critBonus: 0.03 },
+  "E35": { dmgFlat: 15 },
+  "E36": { dmgFlat: 5, passiveScrap: 0.03 },
+  "E37": { flatDmgReduce: 1 },
+  "E38": { dmgFlat: 6, autoHeal: 0.03 },
+  "E39": { dmgFlat: 3 },
+  "E40": { dmgFlat: 5, autoDmg: 1 },
+  "E41": { dmgFlat: 6, autoHeal: 0.03 },
+  "E42": { dmgFlat: 5, critBonus: 0.03 },
+  "E43": { dmgFlat: 4 },
+  "E44": { dmgFlat: 12 },
+  "E45": { dmgFlat: 8, cooldownMod: -1 },
+  "E46": { flatDmgReduce: 1 },
+  "E47": { dmgFlat: 20 },
+  "E48": { dmgFlat: 4, autoHeal: 0.05 },
+  "E49": { dmgFlat: 6 },
+  "E50": { dmgFlat: 25 },
+  // ORDNANCE
+  "O51": { dmgFlat: 12 },
+  "O52": { dmgFlat: 8 },
+  "O53": { dmgFlat: 10, critBonus: 0.03 },
+  "O54": { dmgFlat: 8, fireResist: 0.8 },
+  "O55": { dmgFlat: 6, energyRegen: 0.2 },
+  "O56": { dmgFlat: 6, cooldownMod: -1 },
+  "O57": { dmgFlat: 10 },
+  "O58": { dmgFlat: 8 },
+  "O59": { dmgFlat: 6 },
+  "O60": { dmgFlat: 30 },
+  "O61": { dmgFlat: 2 },
+  "O62": { dmgFlat: 8, critBonus: 0.05 },
+  "O63": { dmgFlat: 5, autoDmg: 2 },
+  "O64": { evadeBonus: 0.1 },
+  "O65": { dmgFlat: 10, autoHeal: 0.08 },
+  "O66": { flatDmgReduce: 2 },
+  "O67": { dmgFlat: 6, evadeBonus: 0.05 },
+  "O68": { dmgFlat: 5 },
+  "O69": { dmgFlat: 6, passiveScrap: 0.05 },
+  "O70": { dmgFlat: 5, autoDmg: 1 },
+  "O71": { dmgFlat: 8 },
+  "O72": { dmgFlat: 10 },
+  "O73": { dmgFlat: 8 },
+  "O74": { dmgFlat: 25 },
+  "O75": { dmgFlat: 12, critBonus: 0.05 },
+  // SHIELDING
+  "S76": { flatDmgReduce: 2 },
+  "S77": { autoHeal: 0.05, shieldAbsorb: 2 },
+  "S78": { shieldAbsorb: 4 },
+  "S79": { shieldAbsorb: 3 },
+  "S80": { shieldAbsorb: 2, autoDmg: 1 },
+  "S81": { evadeBonus: 0.1, shieldAbsorb: 2 },
+  "S82": { shieldAbsorb: 3 },
+  "S83": { shieldAbsorb: 4 },
+  "S84": { shieldAbsorb: 2, dmgFlat: 3 },
+  "S85": { shieldAbsorb: 3 },
+  "S86": { evadeBonus: 0.05 },
+  "S87": { shieldAbsorb: 4 },
+  "S88": { autoHeal: 0.1 },
+  "S89": { shieldAbsorb: 2 },
+  "S90": { shieldAbsorb: 3 },
+  "S91": { flatDmgReduce: 2 },
+  "S92": { flatDmgReduce: 1, autoDmg: 1 },
+  "S93": { fireResist: 0.5 },
+  "S94": { shieldAbsorb: 3, maxEnergy: 10 },
+  "S95": { shieldAbsorb: 6 },
+  "S96": { autoHeal: 0.08, shieldAbsorb: 3 },
+  "S97": { flatDmgReduce: 1 },
+  "S98": { autoHeal: 0.05, shieldAbsorb: 2 },
+  "S99": { shieldAbsorb: 3 },
+  "S100": { shieldAbsorb: 10 },
+  // DURABILITY
+  "D101": { maxHull: 20 },
+  "D102": { autoHeal: 0.1 },
+  "D103": { fireResist: 0.5 },
+  "D104": { fireResist: 0.3 },
+  "D105": { flatDmgReduce: 2 },
+  "D106": { autoHeal: 0.05 },
+  "D107": { repairBonus: 5 },
+  "D108": { flatDmgReduce: 1 },
+  "D109": { autoHeal: 0.03 },
+  "D110": { dmgFlat: 5 },
+  "D111": { flatDmgReduce: 1 },
+  "D112": { autoHeal: 0.08, repairBonus: 3 },
+  "D113": { flatDmgReduce: 2 },
+  "D114": { energyRegen: 0.1 },
+  "D115": { flatDmgReduce: 1 },
+  "D116": { cooldownMod: -1 },
+  "D117": { scrapOnKill: 5, passiveScrap: 0.03 },
+  "D118": { scrapOnKill: 10 },
+  "D119": { flatDmgReduce: 1 },
+  "D120": { fuelCost: -2 },
+  "D121": { flatDmgReduce: 1 },
+  "D122": { autoHeal: 0.05 },
+  "D123": { fireResist: 0.5 },
+  "D124": { flatDmgReduce: 2 },
+  "D125": { maxHull: 100 },
+  // MOBILITY
+  "M126": { fuelCost: -3 },
+  "M127": { fuelCost: -3 },
+  "M128": { fuelCost: -4 },
+  "M129": { evadeBonus: 0.05 },
+  "M130": { dmgFlat: 3, evadeBonus: 0.03 },
+  "M131": { evadeBonus: 0.08 },
+  "M132": { fuelCost: -2 },
+  "M133": { passiveScrap: 0.02 },
+  "M134": { fuelCost: -3 },
+  "M135": { fuelCost: -3, cooldownMod: -1 },
+  "M136": { evadeBonus: 0.05, flatDmgReduce: 1 },
+  "M137": { creditsOnKill: 5 },
+  "M138": { cooldownMod: -1 },
+  "M139": { flatDmgReduce: 1 },
+  "M140": { cooldownMod: -1 },
+  "M141": { passiveCredits: 0.03 },
+  "M142": { passiveScrap: 0.03 },
+  "M143": { fuelCost: -2 },
+  "M144": { cooldownMod: -1 },
+  "M145": { fuelCost: -4 },
+  "M146": { evadeBonus: 0.05 },
+  "M147": { fuelCost: -2 },
+  "M148": { fuelCost: -3 },
+  "M149": { energyRegen: 0.2, cooldownMod: -1 },
+  "M150": { fuelCost: -4 },
+  // SENSORS
+  "U151": { critBonus: 0.03 },
+  "U152": { flatDmgReduce: 1 },
+  "U153": { evadeBonus: 0.05 },
+  "U154": { passiveScrap: 0.05 },
+  "U155": { passiveCredits: 0.05 },
+  "U156": { flatDmgReduce: 2 },
+  "U157": { evadeBonus: 0.03 },
+  "U158": { critBonus: 0.05 },
+  "U159": { critBonus: 0.02 },
+  "U160": { creditsOnKill: 5 },
+  "U161": { creditsOnKill: 10 },
+  "U162": { autoDmg: 2 },
+  "U163": { autoDmg: 3 },
+  "U164": { critBonus: 0.1 },
+  "U165": { dmgFlat: 4 },
+  "U166": { immuneEMP: true },
+  "U167": { passiveCredits: 0.05 },
+  "U168": { scrapOnKill: 10 },
+  "U169": { flatDmgReduce: 1 },
+  "U170": { evadeBonus: 0.08 },
+  "U171": { dmgFlat: 5, autoDmg: 1 },
+  "U172": { scrapOnKill: 15, creditsOnKill: 5 },
+  "U173": { creditsOnKill: 5 },
+  "U174": { critBonus: 0.03 },
+  "U175": { critBonus: 0.05, passiveScrap: 0.05 },
+  // POWER
+  "A176": { maxEnergy: 50 },
+  "A177": { energyRegen: 0.2 },
+  "A178": { maxEnergy: 25, energyRegen: 0.1 },
+  "A179": { cooldownMod: -1 },
+  "A180": { energyRegen: 0.1 },
+  "A181": { energyRegen: 0.1 },
+  "A182": { maxEnergy: 50 },
+  "A183": { energyRegen: 0.15 },
+  "A184": { energyRegen: 0.2 },
+  "A185": { cooldownMod: -1 },
+  "A186": { energyRegen: 0.1 },
+  "A187": { energyRegen: 0.1 },
+  "A188": { energyRegen: 0.1, dmgFlat: 3 },
+  "A189": { energyRegen: 0.3, maxEnergy: 30 },
+  "A190": { dmgFlat: 5, critBonus: 0.05 },
+  "A191": { shieldAbsorb: 3 },
+  "A192": { energyRegen: 0.1 },
+  "A193": { dmgFlat: 5, energyRegen: 0.1 },
+  "A194": { energyRegen: 0.3 },
+  "A195": { maxEnergy: 30, energyRegen: 0.1 },
+  "A196": { cooldownMod: -1, energyRegen: 0.1 },
+  "A197": { dmgFlat: 5, cooldownMod: -1 },
+  "A198": { mineBonus: 3, cooldownMod: -1 },
+  "A199": { dmgFlat: 3, maxEnergy: 20, maxHull: 10, energyRegen: 0.1 },
+  "A200": { shieldAbsorb: 10, maxHull: 50, flatDmgReduce: 5, noJump: true }
+};
 var GameServer = class {
   static {
     __name(this, "GameServer");
@@ -1975,10 +2166,11 @@ var GameServer = class {
             if (!ship.crew.includes(playerId)) ship.crew.push(playerId);
             this.send(ws, "update_ui", { state: "IN_GAME", location: player.room, sector: ship.sector });
             this.send(ws, "ship_sync", {
-              hull: { current: ship.hull, max: 100 },
+              hull: { current: ship.hull, max: this.getMaxHull(ship) },
               fuel: { current: ship.fuel, max: 100 },
-              energy: { current: ship.energy, max: ship.maxEnergy },
+              energy: { current: ship.energy, max: this.getMaxEnergy(ship) },
               scrap: ship.scrap,
+              credits: ship.credits,
               cooldowns: ship.cooldowns
             });
             this.broadcastToShip(ship.id, {
@@ -2037,6 +2229,62 @@ var GameServer = class {
       shipCounter: this.shipCounter,
       pendingRequests: this.pendingRequests
     });
+  }
+  getShipModifiers(ship) {
+    const mods = {
+      dmgFlat: 0,
+      critBonus: 0,
+      maxHull: 0,
+      maxEnergy: 0,
+      energyRegen: 0,
+      fuelCost: 0,
+      shieldAbsorb: 0,
+      repairBonus: 0,
+      mineBonus: 0,
+      fireResist: 1,
+      evadeBonus: 0,
+      cooldownMod: 0,
+      flatDmgReduce: 0,
+      scrapOnKill: 0,
+      creditsOnKill: 0,
+      autoHeal: 0,
+      autoDmg: 0,
+      passiveScrap: 0,
+      passiveCredits: 0,
+      immuneEMP: false,
+      noJump: false,
+      hullCostPerAttack: 0
+    };
+    if (!ship.upgrades) return mods;
+    for (const id of ship.upgrades) {
+      const eff = UPGRADE_EFFECTS[id];
+      if (!eff) continue;
+      for (const [key, val] of Object.entries(eff)) {
+        if (key === "fireResist") {
+          mods.fireResist *= val;
+        } else if (typeof val === "boolean") {
+          mods[key] = mods[key] || val;
+        } else if (typeof val === "number") {
+          mods[key] = (mods[key] || 0) + val;
+        }
+      }
+    }
+    mods.dmgFlat = Math.min(mods.dmgFlat, 40);
+    mods.fuelCost = Math.max(mods.fuelCost, -7);
+    mods.cooldownMod = Math.max(mods.cooldownMod, -3);
+    mods.flatDmgReduce = Math.min(mods.flatDmgReduce, 8);
+    mods.shieldAbsorb = Math.min(mods.shieldAbsorb, 15);
+    mods.evadeBonus = Math.min(mods.evadeBonus, 0.12);
+    mods.energyRegen = Math.min(mods.energyRegen, 1);
+    mods.autoHeal = Math.min(mods.autoHeal, 0.25);
+    mods.autoDmg = Math.min(mods.autoDmg, 8);
+    return mods;
+  }
+  getMaxHull(ship) {
+    return 100 + (this.getShipModifiers(ship).maxHull || 0);
+  }
+  getMaxEnergy(ship) {
+    return 50 + (this.getShipModifiers(ship).maxEnergy || 0);
   }
   async destroyShip(shipId) {
     const ship = this.ships[shipId];
@@ -2131,8 +2379,7 @@ var GameServer = class {
         hull: 100,
         scrap: 25,
         // Increased from 15
-        credits: 250,
-        // Increased from 200
+        credits: 150,
         upgrades: [],
         currentEncounter: null,
         cooldowns: { "Bridge": 0, "Weapons Cntrl": 0, "Cargo Bay": 0, "Engineering": 0 },
@@ -2411,7 +2658,9 @@ var GameServer = class {
       }
       ship.energy -= 15;
       ship.shieldsActive = true;
-      broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-15 Energy, Absorbs 8 DMG)`, "#00FFFF");
+      const shieldMods = this.getShipModifiers(ship);
+      const totalAbsorb = 8 + shieldMods.shieldAbsorb;
+      broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-15 Energy, Absorbs ${totalAbsorb} DMG)`, "#00FFFF");
     } else if (mainCmd === "evade") {
       if (player.room !== ROOMS["bridge"]) {
         this.send(ws, "log", { message: "ERROR: HELM ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
@@ -2445,14 +2694,20 @@ var GameServer = class {
         this.send(ws, "log", { message: "ERROR: JUMP MUST BE EXECUTED FROM THE BRIDGE.", color: "#FF0000" });
         return;
       }
+      const jumpMods = this.getShipModifiers(ship);
+      if (jumpMods.noJump) {
+        this.send(ws, "log", { message: "ERROR: INSTALLED MODULE PREVENTS FSD OPERATION.", color: "#FF0000" });
+        return;
+      }
       const destSector = parseInt(args[1]);
       const currentSectorData = this.galaxy[ship.sector];
       if (ship.cooldowns["Bridge"] > 0) {
         this.send(ws, "log", { message: `ERROR: BRIDGE ON COOLDOWN.`, color: "#FF0000" });
         return;
       }
-      if (currentSectorData.links.includes(destSector) && ship.fuel >= 10) {
-        ship.fuel -= 10;
+      const fuelCost = Math.max(1, 10 + jumpMods.fuelCost);
+      if (currentSectorData.links.includes(destSector) && ship.fuel >= fuelCost) {
+        ship.fuel -= fuelCost;
         ship.cooldowns["Bridge"] = 5;
         broadcast(`SPOOLING FSD DRIVE...`, "#00FFFF");
         setTimeout(async () => {
@@ -2532,8 +2787,9 @@ var GameServer = class {
         if (ship.energy < 5) return noEnergyErr(5);
         ship.energy -= 5;
         ship.cooldowns["Weapons Cntrl"] = 3;
-        let dmg = Math.floor(Math.random() * 20) + 10;
-        if (Math.random() < 0.05) {
+        const atkMods = this.getShipModifiers(ship);
+        let dmg = Math.floor(Math.random() * 20) + 10 + atkMods.dmgFlat;
+        if (Math.random() < 0.05 + atkMods.critBonus) {
           dmg = Math.floor(dmg * 1.5);
           this.send(ws, "log", { message: `[!!!] CRITICAL HIT! Main battery struck a vulnerable sector!`, color: "#00FF00" });
         }
@@ -2541,6 +2797,9 @@ var GameServer = class {
           dmg *= 2;
           ship.overchargeActive = false;
           broadcast(`[WEAPONS] OVERCHARGED BEAM FIRED! DEVASTATING DAMAGE!`, "#FF0000");
+        }
+        if (atkMods.hullCostPerAttack > 0) {
+          ship.hull -= atkMods.hullCostPerAttack;
         }
         ship.currentEncounter.hp -= dmg;
         broadcast(`[WEAPONS] Hit ${ship.currentEncounter.name || "Asteroid"} for ${dmg} DMG.`, "#FF00FF");
@@ -2596,16 +2855,34 @@ var GameServer = class {
         }
         ship.scrap -= 5;
         ship.cooldowns["Weapons Cntrl"] = 2;
-        const dmg = Math.floor(Math.random() * 15) + 5;
+        const flakMods = this.getShipModifiers(ship);
+        const dmg = Math.floor(Math.random() * 15) + 5 + Math.floor(flakMods.dmgFlat / 2);
         ship.currentEncounter.hp -= dmg;
         broadcast(`[WEAPONS] FLAK CANNON FIRED! Hit for ${dmg} DMG.`, "#FF00FF");
       }
       if (ship.currentEncounter && ship.currentEncounter.hp <= 0) {
         broadcast(`** TARGET DESTROYED **`, "#00FF00");
+        const killMods = this.getShipModifiers(ship);
         if (ship.currentEncounter.type === "ship") {
-          const scrap = Math.floor(Math.random() * 30) + 10;
+          let scrapReward = Math.floor(Math.random() * 20) + 10 + killMods.scrapOnKill;
+          let creditReward = Math.floor(Math.random() * 15) + 5 + killMods.creditsOnKill;
+          const npcData = ship.currentEncounter.isGlobalNPC ? this.npcs[ship.currentEncounter.id] : null;
+          if (npcData) {
+            if (npcData.type === "leviathan") {
+              scrapReward *= 5;
+              creditReward *= 5;
+            } else if (npcData.type === "pirate" && npcData.maxHp >= 150) {
+              scrapReward *= 2;
+              creditReward *= 2;
+            }
+          }
+          ship.scrap += scrapReward;
+          ship.credits += creditReward;
+          broadcast(`Salvaged ${scrapReward} Scrap and ${creditReward} Credits.`, "#00FF00");
+        } else if (ship.currentEncounter.type === "asteroid") {
+          const scrap = Math.floor(Math.random() * 10) + 5 + killMods.scrapOnKill;
           ship.scrap += scrap;
-          broadcast(`Salvaged ${scrap} Scrap.`, "#00FF00");
+          broadcast(`Mined ${scrap} Scrap from the debris.`, "#00FF00");
         }
         if (ship.currentEncounter.isGlobalNPC && this.npcs[ship.currentEncounter.id]) {
           this.npcs[ship.currentEncounter.id].hp = 0;
@@ -2626,14 +2903,17 @@ var GameServer = class {
         return;
       }
       if (mainCmd === "repair") {
-        if (ship.scrap < 10 || ship.hull >= 100) {
-          this.send(ws, "log", { message: "ERROR: Requires 10 Scrap or Hull is already full.", color: "#FF0000" });
+        const repMods = this.getShipModifiers(ship);
+        const maxH = this.getMaxHull(ship);
+        if (ship.scrap < 10 || ship.hull >= maxH) {
+          this.send(ws, "log", { message: `ERROR: Requires 10 Scrap or Hull is already full (${maxH}).`, color: "#FF0000" });
           return;
         }
         ship.scrap -= 10;
-        ship.hull = Math.min(100, ship.hull + 10);
+        const repairAmt = 10 + repMods.repairBonus;
+        ship.hull = Math.min(maxH, ship.hull + repairAmt);
         ship.cooldowns["Engineering"] = 5;
-        broadcast(`[ENGINEERING] Heavy hull repair complete. (+10 Hull, -10 Scrap)`, "#00FF00");
+        broadcast(`[ENGINEERING] Heavy hull repair complete. (+${repairAmt} Hull, -10 Scrap)`, "#00FF00");
       } else if (mainCmd === "reroute") {
         const targetRoomStr = args[1]?.toLowerCase();
         let targetRoomMap = { "bridge": "Bridge", "weapons": "Weapons Cntrl", "cargo": "Cargo Bay" };
@@ -2651,7 +2931,8 @@ var GameServer = class {
         ship.cooldowns["Engineering"] = 4;
         broadcast(`[ENGINEERING] Power rerouted to ${mapped}! Cooldowns cleared.`, "#00FFFF");
       } else if (mainCmd === "patch") {
-        ship.hull = Math.min(100, ship.hull + 2);
+        const maxH = this.getMaxHull(ship);
+        ship.hull = Math.min(maxH, ship.hull + 2);
         ship.cooldowns["Engineering"] = 2;
         broadcast(`[ENGINEERING] Emergency micro-patch applied. (+2 Hull)`, "#00FF00");
       } else if (mainCmd === "overclock") {
@@ -2664,14 +2945,14 @@ var GameServer = class {
         }
         ship.cooldowns["Engineering"] = 3;
       } else if (mainCmd === "siphon") {
-        if (ship.energy < 40) {
-          this.send(ws, "log", { message: "ERROR: REQUIRES 40 ENERGY TO SYNTHESIZE FUEL.", color: "#FF0000" });
+        if (ship.energy < 20) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 20 ENERGY TO SYNTHESIZE FUEL.", color: "#FF0000" });
           return;
         }
-        ship.energy -= 40;
-        ship.fuel += 1;
+        ship.energy -= 20;
+        ship.fuel += 5;
         ship.cooldowns["Engineering"] = 5;
-        broadcast(`[ENGINEERING] Emergency siphon complete. Synthesized 1 Jump Fuel.`, "#00FF00");
+        broadcast(`[ENGINEERING] Emergency siphon complete. Synthesized 5 Jump Fuel. (-20 Energy)`, "#00FF00");
       } else if (mainCmd === "vent") {
         if (ship.fires > 0) {
           broadcast(`[ENGINEERING] Plasma vents opened. ${ship.fires} fires extinguished!`, "#00FFFF");
@@ -2698,7 +2979,8 @@ var GameServer = class {
         if (ship.currentEncounter && ship.currentEncounter.type === "asteroid") {
           ship.energy -= 2;
           ship.cooldowns["Cargo Bay"] = 3;
-          const yieldAmt = Math.floor(Math.random() * 5) + 2;
+          const mineMods = this.getShipModifiers(ship);
+          const yieldAmt = Math.floor(Math.random() * 5) + 2 + mineMods.mineBonus;
           ship.scrap += yieldAmt;
           ship.currentEncounter.hp -= 10;
           broadcast(`[CARGO] ${player.name} mined ${yieldAmt} Scrap.`, "#00FF00");
@@ -2750,6 +3032,20 @@ var GameServer = class {
         ship.scrap -= 20;
         ship.cooldowns["Cargo Bay"] = 5;
         broadcast(`[CARGO] PROBE LAUNCHED. Gathering deep sector telemetry...`, "#00FFFF");
+        const sectorData = this.galaxy[ship.sector];
+        sectorData.links.forEach((linkedSector) => {
+          const adjSector = this.galaxy[linkedSector];
+          let info = `  [SECTOR ${linkedSector}] `;
+          const adjStation = this.stations[linkedSector];
+          if (adjStation) info += `STATION: ${adjStation.name} | `;
+          if (adjSector.encounterType) info += `SIGNAL: ${adjSector.encounterType.toUpperCase()}`;
+          else info += `CLEAR`;
+          const npcsInAdj = Object.values(this.npcs).filter((n) => n.sector === linkedSector && n.hp > 0);
+          npcsInAdj.forEach((n) => {
+            info += ` | ENTITY: ${n.name}`;
+          });
+          this.send(ws, "log", { message: info, color: "#00FFFF" });
+        });
       } else if (mainCmd === "drone") {
         if (ship.scrap < 10) {
           this.send(ws, "log", { message: "ERROR: REQUIRES 10 SCRAP TO ASSEMBLE DRONE.", color: "#FF0000" });
@@ -2762,7 +3058,7 @@ var GameServer = class {
       } else if (mainCmd === "hide") {
         ship.hideActive = true;
         ship.cooldowns["Cargo Bay"] = 3;
-        broadcast(`[CARGO] VALUABLE CONTRABAND CONCEALED IN BULKHEADS.`, "#00FFFF");
+        broadcast(`[CARGO] VALUABLE CONTRABAND CONCEALED IN BULKHEADS. Reduced NPC threat profile.`, "#00FFFF");
       }
     } else if (mainCmd === "comm") {
       if (args[1]?.toLowerCase() === "server") {
@@ -2932,8 +3228,10 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
       ship.credits -= upgrade.price;
       ship.upgrades.push(upgradeId);
       broadcast(`[SYS] ${player.name} purchased and installed ${upgrade.name.toUpperCase()}.`, "#00FF00");
-      if (upgradeId === "D101") ship.hull = Math.min(120, ship.hull + 20);
-      if (upgradeId === "D125") ship.hull = 200;
+      const newMaxHull = this.getMaxHull(ship);
+      const newMaxEnergy = this.getMaxEnergy(ship);
+      ship.maxEnergy = newMaxEnergy;
+      broadcast(`[SYS] Ship stats updated: Max Hull ${newMaxHull}, Max Energy ${newMaxEnergy}`, "#AAAAAA");
       await this.saveState();
     } else if (mainCmd === "inventory") {
       if (ship.upgrades.length === 0) {
@@ -2942,8 +3240,29 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
         this.send(ws, "log", { message: `--- SHIP SYSTEMS INVENTORY ---`, color: "#FFFF00" });
         ship.upgrades.forEach((id) => {
           const u = UPGRADES[id];
-          this.send(ws, "log", { message: `[${id}] ${u.name}: ${u.desc}`, color: "#FFFFFF" });
+          const eff = UPGRADE_EFFECTS[id];
+          let effStr = eff ? Object.entries(eff).map(([k, v]) => `${k}:${v > 0 ? "+" : ""}${v}`).join(" ") : "";
+          this.send(ws, "log", { message: `[${id}] ${u.name}: ${u.desc} ${effStr ? "(" + effStr + ")" : ""}`, color: "#FFFFFF" });
         });
+        const mods = this.getShipModifiers(ship);
+        this.send(ws, "log", { message: `--- AGGREGATE MODIFIERS ---`, color: "#FFFF00" });
+        let summary = [];
+        if (mods.dmgFlat) summary.push(`DMG+${mods.dmgFlat}`);
+        if (mods.critBonus) summary.push(`CRIT+${(mods.critBonus * 100).toFixed(0)}%`);
+        if (mods.maxHull) summary.push(`HULL+${mods.maxHull}`);
+        if (mods.maxEnergy) summary.push(`ENRG+${mods.maxEnergy}`);
+        if (mods.energyRegen) summary.push(`REGEN+${mods.energyRegen.toFixed(1)}/s`);
+        if (mods.shieldAbsorb) summary.push(`SHLD+${mods.shieldAbsorb}`);
+        if (mods.flatDmgReduce) summary.push(`ARMOR+${mods.flatDmgReduce}`);
+        if (mods.evadeBonus) summary.push(`EVD+${(mods.evadeBonus * 100).toFixed(0)}%`);
+        if (mods.fuelCost) summary.push(`FUEL${mods.fuelCost}`);
+        if (mods.cooldownMod) summary.push(`CD${mods.cooldownMod}`);
+        if (mods.autoHeal) summary.push(`HEAL${(mods.autoHeal * 100).toFixed(0)}%/t`);
+        if (mods.autoDmg) summary.push(`AUTDMG${mods.autoDmg}/t`);
+        if (mods.scrapOnKill) summary.push(`SCRP+${mods.scrapOnKill}/kill`);
+        if (mods.creditsOnKill) summary.push(`CR+${mods.creditsOnKill}/kill`);
+        if (mods.noJump) summary.push(`NO-JUMP`);
+        this.send(ws, "log", { message: summary.join(" | ") || "None", color: "#00FFFF" });
       }
     } else {
       this.send(ws, "log", { message: `Action '${mainCmd}' not recognized.`, color: "#AAAAAA" });
@@ -2972,9 +3291,14 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
             if (ses) this.send(ses.ws, "log", { message: text, color });
           });
         }, "broadcast");
-        if (ship.energy < ship.maxEnergy) {
+        const mods = this.getShipModifiers(ship);
+        const maxH = 100 + mods.maxHull;
+        const maxE = 50 + mods.maxEnergy;
+        ship.maxEnergy = maxE;
+        if (ship.energy < maxE) {
           let regen = ship.overclockActive ? 1 : 0.5;
-          ship.energy = Math.min(ship.maxEnergy, ship.energy + regen);
+          regen += mods.energyRegen;
+          ship.energy = Math.min(maxE, ship.energy + regen);
           stateChanged = true;
         }
         if (ship.droneActive && Math.random() < 0.1) {
@@ -2988,8 +3312,8 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
           stateChanged = true;
         }
         if (ship.fires > 0) {
-          let fireDmg = ship.fires * 2;
-          ship.hull -= fireDmg;
+          let fireDmg = Math.floor(ship.fires * 2 * mods.fireResist);
+          if (fireDmg > 0) ship.hull -= fireDmg;
           if (Math.random() < 0.3) {
             broadcast(`[FIRE] Passive hull damage taken: ${fireDmg}`, "#FF0000");
           }
@@ -3009,9 +3333,11 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
         }
         if (ship.jammedCooldown > 0) ship.jammedCooldown--;
         if (ship.currentEncounter && ship.currentEncounter.type === "ship") {
-          if (ship.enemyModifiers.emped === 0 && ship.jammedCooldown === 0) {
+          const effectiveEMP = mods.immuneEMP ? 0 : ship.enemyModifiers.emped;
+          if (effectiveEMP === 0 && ship.jammedCooldown === 0) {
             if (Math.random() < 0.15) {
-              if (ship.evadeActive && Math.random() < 0.85) {
+              const totalEvade = 0.85 + mods.evadeBonus;
+              if (ship.evadeActive && Math.random() < totalEvade) {
                 broadcast(`[BRIDGE] EVASIVE MANEUVERS SUCCESSFUL! Incoming fire missed!`, "#00FF00");
                 ship.evadeActive = false;
               } else if (ship.chaffActive) {
@@ -3026,9 +3352,11 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
                   broadcast(`[!!!] CRITICAL HIT DETECTED! TARGET STRUCK VULNERABLE SYSTEM rooms!`, "#FF0000");
                 }
                 if (ship.enemyModifiers.weaponsDisabled > 0) dmg = Math.floor(dmg / 2);
+                dmg = Math.max(0, dmg - mods.flatDmgReduce);
                 if (ship.shieldsActive) {
-                  dmg = Math.max(0, dmg - 8);
-                  broadcast(`[SHIELDS] Absorbed 8 damage.`, "#00FFFF");
+                  const shieldAbs = 8 + mods.shieldAbsorb;
+                  dmg = Math.max(0, dmg - shieldAbs);
+                  broadcast(`[SHIELDS] Absorbed ${shieldAbs} damage.`, "#00FFFF");
                   ship.shieldsActive = false;
                 }
                 ship.hull -= dmg;
@@ -3046,31 +3374,33 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
           stateChanged = true;
           continue;
         }
-        if (ship.upgrades.includes("D102")) {
-          if (ship.hull < 100 && Math.random() < 0.1) {
-            ship.hull++;
-            stateChanged = true;
-          }
+        if (mods.autoHeal > 0 && ship.hull < maxH && Math.random() < mods.autoHeal) {
+          ship.hull = Math.min(maxH, ship.hull + 1);
+          stateChanged = true;
         }
-        if (ship.upgrades.includes("U162")) {
-          if (ship.currentEncounter && ship.currentEncounter.type === "ship") {
-            ship.currentEncounter.hp -= 2;
-            if (ship.currentEncounter.hp <= 0) {
-              broadcast(`[WEAPONS] AUTO-TURRET CRYSTALLIZED TARGET.`, "#00FF00");
-            }
-            stateChanged = true;
+        if (mods.autoDmg > 0 && ship.currentEncounter && (ship.currentEncounter.type === "ship" || ship.currentEncounter.type === "asteroid")) {
+          ship.currentEncounter.hp -= mods.autoDmg;
+          if (ship.currentEncounter.hp <= 0) {
+            broadcast(`[SYSTEMS] AUTOMATED WEAPONS CRYSTALLIZED TARGET.`, "#00FF00");
           }
+          stateChanged = true;
         }
-        if (ship.upgrades.includes("A177")) {
-          ship.energy = Math.min(ship.maxEnergy, ship.energy + 0.2);
+        if (mods.passiveScrap > 0 && Math.random() < mods.passiveScrap) {
+          ship.scrap += 1;
+          stateChanged = true;
+        }
+        if (mods.passiveCredits > 0 && Math.random() < mods.passiveCredits) {
+          ship.credits += 1;
           stateChanged = true;
         }
         ship.crew.forEach((mid) => {
           const ses = this.sessions.find((s) => s.playerId === mid);
           if (ses) this.send(ses.ws, "ship_sync", {
             hull: ship.hull,
+            maxHull: maxH,
             fuel: ship.fuel,
             energy: Math.floor(ship.energy),
+            maxEnergy: maxE,
             scrap: ship.scrap,
             credits: ship.credits,
             cooldowns: ship.cooldowns
@@ -3089,7 +3419,18 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
           if (playersInSector.length > 0) {
             if (npc.behavior === "aggressive" && npc.cooldown === 0) {
               const targetShip = playersInSector[Math.floor(Math.random() * playersInSector.length)];
-              if (!targetShip.currentEncounter || targetShip.currentEncounter.id !== npc.id) {
+              if (targetShip.hideActive) {
+                targetShip.hideActive = false;
+                const broadcast = /* @__PURE__ */ __name((text, color = "#FFFFFF") => {
+                  targetShip.crew.forEach((memberId) => {
+                    const ses = this.sessions.find((s) => s.playerId === memberId);
+                    if (ses) this.send(ses.ws, "log", { message: text, color });
+                  });
+                }, "broadcast");
+                broadcast(`[SENSORS] ${npc.name} passed through the sector but didn't notice us.`, "#00FF00");
+                npc.cooldown = 3;
+                stateChanged = true;
+              } else if (!targetShip.currentEncounter || targetShip.currentEncounter.id !== npc.id) {
                 targetShip.currentEncounter = {
                   id: npc.id,
                   type: "ship",

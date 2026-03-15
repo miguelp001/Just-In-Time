@@ -218,9 +218,10 @@ class MainScene extends Phaser.Scene {
 
     handleShipSync(data) {
         if (this.gameState.networkState === 'IN_GAME') {
-            this.gameState.hull = data.hull;
-            this.gameState.fuel = data.fuel;
-            this.gameState.energy = data.energy;
+            // Normalize: server sends flat numbers from tick, objects from reconnect
+            this.gameState.hull = (typeof data.hull === 'object') ? data.hull : { current: data.hull, max: data.maxHull || 100 };
+            this.gameState.fuel = (typeof data.fuel === 'object') ? data.fuel : { current: data.fuel, max: 100 };
+            this.gameState.energy = (typeof data.energy === 'object') ? data.energy : { current: data.energy, max: data.maxEnergy || 50 };
             this.gameState.scrap = data.scrap;
             this.gameState.credits = data.credits;
             this.gameState.cooldowns = data.cooldowns;
@@ -263,9 +264,9 @@ class MainScene extends Phaser.Scene {
             );
         } else {
             this.headerText.setText(
-                `${SYMBOLS.HULL} Hull: ${g.hull.current || 0}/100 | ` +
-                `${SYMBOLS.FUEL} Fuel: ${g.fuel.current || 0}/100 | ` +
-                `${SYMBOLS.ENERGY} Energy: ${g.energy.current || 0}/50 | ` +
+                `${SYMBOLS.HULL} Hull: ${g.hull.current || 0}/${g.hull.max || 100} | ` +
+                `${SYMBOLS.FUEL} Fuel: ${g.fuel.current || 0}/${g.fuel.max || 100} | ` +
+                `${SYMBOLS.ENERGY} Energy: ${g.energy.current || 0}/${g.energy.max || 50} | ` +
                 `${SYMBOLS.SCRAP} Scrap: ${g.scrap || 0} | ` +
                 `Credits: $${g.credits || 0} | ` +
                 `[ SECTOR: ${g.sector || 'UNKNOWN'} ]${cooldownsStr}`

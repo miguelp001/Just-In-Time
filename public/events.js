@@ -272,28 +272,24 @@ const GAME_EVENTS = [
         id: "anomaly_chronal_echo",
         title: "Chronal Echo",
         type: "anomaly",
-        text: "You detect a ghost signature of your own ship from hours ago. Scanning it yields `Scrap`, but causes a temporary `Energy` drain.",
+        text: "You detect a ghost signature of your own ship from hours ago. Scanning it yields Scrap, but causes a temporary Energy drain.",
         options: [
             {
                 command: "investigate",
                 requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                description: "Sync with the echo (-10 Energy, gain Scrap)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-                    } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-                    }
+                    ship.energy -= 10;
+                    const scrap = Math.floor(Math.random() * 10) + 5;
+                    ship.scrap += scrap;
+                    broadcast(`The echo phased through the hull, depositing ${scrap} units of temporal scrap. (-10 Energy)`, COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("The echo fades, leaving only static.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -301,20 +297,19 @@ const GAME_EVENTS = [
         id: "anomaly_probability_storm",
         title: "Probability Storm",
         type: "anomaly",
-        text: "Reality is unstable. Flipping a switch might grant `Credits` or instantly damage the `Hull`.",
+        text: "Reality is unstable. Flipping a switch might grant Credits or instantly damage the Hull.",
         options: [
             {
                 command: "investigate",
                 requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                description: "Roll the dice (50/50: +40 Credits or -15 Hull)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
+                    if (Math.random() > 0.5) {
+                        ship.credits += 40;
+                        broadcast("Reality snaps in your favor! A cache of data-credits materializes. (+40 Credits)", COLORS.GREEN);
                     } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+                        ship.hull -= 15;
+                        broadcast("The storm collapses inward! Hull buckles from impossible physics. (-15 Hull)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
@@ -322,7 +317,7 @@ const GAME_EVENTS = [
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("You fly through untouched. Probably for the best.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -330,28 +325,24 @@ const GAME_EVENTS = [
         id: "anomaly_null_g_bubble",
         title: "Null-G Bubble",
         type: "anomaly",
-        text: "A localized field where gravity ceases to exist. Spending `Energy` allows you to harvest rare frictionless materials (`Credits`).",
+        text: "A localized field where gravity ceases to exist. Spending Energy allows you to harvest rare frictionless materials.",
         options: [
             {
                 command: "investigate",
-                requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                requiredRoom: "engineering",
+                description: "Harvest materials (-8 Energy, gain Credits)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-                    } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-                    }
+                    ship.energy -= 8;
+                    const credits = Math.floor(Math.random() * 20) + 15;
+                    ship.credits += credits;
+                    broadcast(`Zero-gravity extraction successful. Harvested rare lubricants worth ${credits} Cr. (-8 Energy)`, COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("The bubble drifts away silently.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -359,28 +350,23 @@ const GAME_EVENTS = [
         id: "anomaly_whispering_nebula",
         title: "Whispering Nebula",
         type: "anomaly",
-        text: "Bizarre static on the comms sounds like voices predicting your next jump. Costs `Energy` to analyze, grants temporary immunity to the next Hazard.",
+        text: "Bizarre static on the comms sounds like voices predicting your next jump. Costs Energy to analyze, but reveals adjacent sector data.",
         options: [
             {
                 command: "investigate",
                 requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                description: "Analyze the whispers (-5 Energy, reveal intel)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-                    } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-                    }
+                    ship.energy -= 5;
+                    ship.fuel += 10;
+                    broadcast("The whispers align into navigational data. Fuel reserves optimized. (+10 Fuel, -5 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("The voices fade into static.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -388,20 +374,19 @@ const GAME_EVENTS = [
         id: "anomaly_magnetic_monopole",
         title: "Magnetic Monopole",
         type: "anomaly",
-        text: "A rare physics anomaly. Catching it with the grabber arm yields immense `Credits` but risks severe `Hull` damage.",
+        text: "A rare physics anomaly. Catching it with the grabber arm yields immense Credits but risks severe Hull damage.",
         options: [
             {
                 command: "investigate",
-                requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                requiredRoom: "cargo",
+                description: "Grab it (70% chance: +60 Credits, 30% chance: -25 Hull)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
+                    if (Math.random() > 0.3) {
+                        ship.credits += 60;
+                        broadcast("CONTACT! The monopole is secured. Researchers will pay handsomely. (+60 Credits)", COLORS.GREEN);
                     } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+                        ship.hull -= 25;
+                        broadcast("The monopole destabilizes and tears through the cargo bay! (-25 Hull)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
@@ -409,7 +394,7 @@ const GAME_EVENTS = [
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("Too risky. You let it drift.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -417,28 +402,23 @@ const GAME_EVENTS = [
         id: "anomaly_time_dilation_field",
         title: "Time Dilation Field",
         type: "anomaly",
-        text: "Time slows down inside the cabin. You burn extra `Energy` keeping life support synced, but gain an extra turn in your next combat.",
+        text: "Time slows down inside the field. You burn extra Energy keeping life support synced, but gain a significant combat advantage.",
         options: [
             {
                 command: "investigate",
-                requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                requiredRoom: "engineering",
+                description: "Enter the field (-15 Energy, reset all cooldowns)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-                    } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-                    }
+                    ship.energy -= 15;
+                    for (const room in ship.cooldowns) { ship.cooldowns[room] = 0; }
+                    broadcast("Time bends around the ship. All systems reset to ready state. (-15 Energy, All CDs cleared)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("You skirt the edge of the field. Time resumes normally.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -446,28 +426,22 @@ const GAME_EVENTS = [
         id: "anomaly_tachyon_burst",
         title: "Tachyon Burst",
         type: "anomaly",
-        text: "A sudden surge of faster-than-light particles instantly recharges your `Energy` fully, but scrambles your sensors for one jump.",
+        text: "A sudden surge of faster-than-light particles. Riding the wave fully recharges ship Energy.",
         options: [
             {
                 command: "investigate",
                 requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                description: "Ride the wave (Full Energy recharge)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
-                    } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
-                    }
+                    ship.energy = ship.maxEnergy;
+                    broadcast("The tachyon burst floods every capacitor. Energy reserves fully recharged!", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("The particles scatter harmlessly into the void.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
@@ -475,20 +449,25 @@ const GAME_EVENTS = [
         id: "anomaly_micro_wormhole",
         title: "Micro-Wormhole",
         type: "anomaly",
-        text: "A tiny tear in space. Tossing in `Scrap` returns a refined item worth lots of `Credits`, but there's a 10% chance it returns a live explosive.",
+        text: "A tiny tear in space. Tossing in Scrap returns a refined item worth Credits, but there's a chance it returns a live explosive.",
         options: [
             {
                 command: "investigate",
-                requiredRoom: "bridge",
-                description: "Investigate the anomaly (-5 Energy)",
+                requiredRoom: "cargo",
+                description: "Toss in 10 Scrap (80%: +50 Credits, 20%: -20 Hull)",
                 execute: (ship, player, broadcast) => {
-                    ship.energy.current -= 5;
-                    const res = Math.random();
-                    if (res > 0.5) {
-                        ship.credits += 20;
-                        broadcast("You recovered strange data worth 20 Cr.", COLORS.GREEN);
+                    if (ship.scrap < 10) {
+                        broadcast("Not enough scrap to sacrifice to the wormhole.", COLORS.RED);
+                        ship.currentEncounter = null;
+                        return;
+                    }
+                    ship.scrap -= 10;
+                    if (Math.random() > 0.2) {
+                        ship.credits += 50;
+                        broadcast("The wormhole spits back a polished crystal worth 50 Credits! (-10 Scrap)", COLORS.GREEN);
                     } else {
-                        broadcast("The anomaly dissipates harmlessly.", COLORS.GRAY);
+                        ship.hull -= 20;
+                        broadcast("It returned a LIVE EXPLOSIVE! The blast rocks the cargo bay! (-10 Scrap, -20 Hull)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
@@ -496,7 +475,7 @@ const GAME_EVENTS = [
             {
                 command: "ignore",
                 description: "Leave it alone",
-                execute: (ship, player, broadcast) => { broadcast("Ignored.", COLORS.GRAY); ship.currentEncounter = null; }
+                execute: (ship, player, broadcast) => { broadcast("The tear seals itself shut.", COLORS.GRAY); ship.currentEncounter = null; }
             }
         ]
     }
