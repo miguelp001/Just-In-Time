@@ -131,14 +131,21 @@ class MainScene extends Phaser.Scene {
 
     connectToServer() {
         if (typeof io !== 'undefined') {
-            // If we are on a static host (like Cloudflare), we might need an explicit URL.
-            // For now, we default to the current host, but offer a fallback for local dev.
-            this.socket = io();
+            // Check for server selection in query params (e.g., ?server=http://localhost:3000)
+            const urlParams = new URLSearchParams(window.location.search);
+            const remoteServer = urlParams.get('server');
+            
+            if (remoteServer) {
+                this.logMessage(`CONNECTING TO REMOTE UPLINK: ${remoteServer}...`, COLORS.CYAN);
+                this.socket = io(remoteServer);
+            } else {
+                // Default to origin
+                this.socket = io();
+            }
             
             this.socket.on('connect_error', (err) => {
-                console.warn("Connection failed. If you are running the frontend separately from the server, ensure 'server.js' is running on port 3000.");
-                // Optional: Attempt to connect to localhost:3000 if the primary connection fails
-                // this.socket = io('http://localhost:3000');
+                console.warn("Connection failed. Use '?server=URL' to specify a remote backend.");
+                this.logMessage("UPLINK OFFLINE. Use ?server=<URL> to specify backend.", COLORS.YELLOW);
             });
         } else {
             console.error("socket.io not found! Is the CDN reachable?");

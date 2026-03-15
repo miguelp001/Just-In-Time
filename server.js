@@ -2,14 +2,19 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
-const { getRandomEvent, SECTOR_FLAVOR, ROOM_DESCRIPTIONS } = require('./events.js');
+const { getRandomEvent, SECTOR_FLAVOR, ROOM_DESCRIPTIONS } = require('./public/events.js');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
-// Serve static files from the current directory
-app.use(express.static(path.join(__dirname)));
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Generate Procedural Galaxy
 const NUM_SECTORS = 200;
