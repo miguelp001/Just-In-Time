@@ -131,10 +131,19 @@ class MainScene extends Phaser.Scene {
 
     connectToServer() {
         if (typeof io !== 'undefined') {
+            // If we are on a static host (like Cloudflare), we might need an explicit URL.
+            // For now, we default to the current host, but offer a fallback for local dev.
             this.socket = io();
+            
+            this.socket.on('connect_error', (err) => {
+                console.warn("Connection failed. If you are running the frontend separately from the server, ensure 'server.js' is running on port 3000.");
+                // Optional: Attempt to connect to localhost:3000 if the primary connection fails
+                // this.socket = io('http://localhost:3000');
+            });
         } else {
-            console.error("socket.io not found! Is the server running and can it serve /socket.io/socket.io.js?");
+            console.error("socket.io not found! Is the CDN reachable?");
             this.logMessage("CRITICAL ERROR: Uplink module (socket.io) not found.", COLORS.RED);
+            this.logMessage("Please check your internet connection or script tags.", COLORS.GRAY);
             return;
         }
 
