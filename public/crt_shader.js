@@ -49,10 +49,10 @@ const CustomPipeline = new Phaser.Class({
                     // Sample texture
                     col = texture2D(uMainSampler, vec2(uv.x, uv.y)).rgb;
                     
-                    // Subtle chromatic aberration
-                    col.r = texture2D(uMainSampler, vec2(uv.x+0.003,uv.y)).x;
+                    // Subtle chromatic aberration (Reduced for clarity)
+                    col.r = texture2D(uMainSampler, vec2(uv.x+0.001,uv.y)).x;
                     col.g = texture2D(uMainSampler, vec2(uv.x+0.000,uv.y)).y;
-                    col.b = texture2D(uMainSampler, vec2(uv.x-0.003,uv.y)).z;
+                    col.b = texture2D(uMainSampler, vec2(uv.x-0.001,uv.y)).z;
 
                     // Scanlines (Reduced intensity for legibility)
                     col *= clamp(0.85 + 0.15*sin(uv.y * 800.0), 0.0, 1.0);
