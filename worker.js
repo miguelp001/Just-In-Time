@@ -256,11 +256,31 @@ export class GameServer {
                 const status = p.state === 'LOBBY' ? 'LOBBY' : `STEWARDING ${p.shipId}`;
                 this.send(ws, 'log', { message: `[${p.id.slice(0, 4)}] ${p.name} - STATUS: ${status}`, color: '#FFFFFF' });
             });
+        } else if (mainCmd === 'rename') {
+            if (args.length < 2) {
+                this.send(ws, 'log', { message: "ERROR: Provide a new name (e.g., 'rename StarPilot').", color: '#FF0000' });
+                return;
+            }
+            const newName = args.slice(1).join(' ');
+            if (newName.toLowerCase() === 'ship') {
+                this.send(ws, 'log', { message: "ERROR: Player name cannot be 'ship'.", color: '#FF0000' });
+                return;
+            }
+            const nameExists = Object.values(this.players).some(p => p.name.toLowerCase() === newName.toLowerCase());
+            if (nameExists) {
+                this.send(ws, 'log', { message: `ERROR: The name '${newName}' is already taken.`, color: '#FF0000' });
+                return;
+            }
+            const oldName = player.name;
+            player.name = newName;
+            this.send(ws, 'log', { message: `[SYS] Name changed to ${newName}.`, color: '#00FF00' });
+            // In lobby, no broadcast needed unless we want a global chat, but for now just local confirmation
         } else if (mainCmd === 'help') {
             this.send(ws, 'log', { message: `--- LOBBY COMMANDS ---`, color: '#FFFF00' });
             this.send(ws, 'log', { message: `> 'ships': List all active vessels in the nebula.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'create <name>': Commission a new ship and become its Captain.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'join <id>': Request to join the crew of an existing ship.`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'rename <name>': Change your pilot callsign.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'who': See a list of all connected players.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'help': Show this message.`, color: '#FFFFFF' });
         } else {
@@ -460,10 +480,37 @@ export class GameServer {
                 const status = (p.shipId === ship.id) ? 'CREWMATE' : (p.state === 'LOBBY' ? 'LOBBY' : `ABOARD ${p.shipId}`);
                 this.send(ws, 'log', { message: `[${p.id.slice(0, 4)}] ${p.name} - STATUS: ${status}`, color: '#FFFFFF' });
             });
+        } else if (mainCmd === 'rename') {
+            if (args.length < 2) {
+                this.send(ws, 'log', { message: "ERROR: Provide a name or 'ship <newname>'.", color: '#FF0000' });
+                return;
+            }
+            if (args[1].toLowerCase() === 'ship') {
+                if (args.length < 3) {
+                    this.send(ws, 'log', { message: "ERROR: Provide a new name for the ship.", color: '#FF0000' });
+                    return;
+                }
+                const newShipName = args.slice(2).join(' ').toUpperCase();
+                const oldShipName = ship.name;
+                ship.name = newShipName;
+                broadcast(`[SYS] ${player.name} has renamed the ship to ${newShipName}.`, '#00FF00');
+            } else {
+                const newName = args.slice(1).join(' ');
+                const nameExists = Object.values(this.players).some(p => p.name.toLowerCase() === newName.toLowerCase());
+                if (nameExists) {
+                    this.send(ws, 'log', { message: `ERROR: The name '${newName}' is already taken.`, color: '#FF0000' });
+                    return;
+                }
+                const oldName = player.name;
+                player.name = newName;
+                broadcast(`[SYS] ${oldName} is now known as ${newName}.`, '#00FF00');
+            }
         } else if (mainCmd === 'help') {
             this.send(ws, 'log', { message: `--- COMMAND PROTOCOLS ---`, color: '#FFFF00' });
-            this.send(ws, 'log', { message: `> 'move <room>', 'jump <sector>', 'scan', 'comm <msg>', 'mine', 'attack', 'repair', 'who', 'help'`, color: '#FFFFFF' });
-        } else {
+            this.send(ws, 'log', { message: `> 'move <room>', 'jump <sector>', 'scan', 'comm <msg>', 'mine', 'attack', 'repair'`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'rename <name>', 'rename ship <name>', 'who', 'help'`, color: '#FFFFFF' });
+        }
+ else {
             this.send(ws, 'log', { message: `Action '${mainCmd}' not recognized.`, color: '#AAAAAA' });
         }
     }
