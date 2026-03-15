@@ -1142,7 +1142,7 @@ const GAME_EVENTS = [
                 description: "Bring them aboard (-10 Energy)",
                 execute: (ship, player, broadcast) => {
                     ship.energy -= 10;
-                    ship.hull = Math.min(ship.maxHull || 100, ship.hull + 20);
+                    ship.hull = Math.min(ship.maxHull || 100, (ship.hull !== undefined ? ship.hull : 100) + 20);
                     broadcast("The survivor fixed your main couplings! (+20 Hull, -10 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
@@ -1296,7 +1296,7 @@ const GAME_EVENTS = [
                 execute: (ship, player, broadcast) => {
                     if (ship.fuel >= 15) {
                         ship.fuel -= 15;
-                        ship.hull = Math.min(ship.maxHull || 100, (ship.hull || 100) + 40);
+                        ship.hull = Math.min(ship.maxHull || 100, (ship.hull !== undefined ? ship.hull : 100) + 40);
                         broadcast("They bless your ship. Hull plates glow with peace. (+40 Hull, -15 Fuel)", COLORS.GREEN);
                     } else {
                         broadcast("Not enough fuel.", COLORS.RED);

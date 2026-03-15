@@ -1184,7 +1184,7 @@ var GAME_EVENTS = [
         description: "Bring them aboard (-10 Energy)",
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
           ship.energy -= 10;
-          ship.hull = Math.min(ship.maxHull || 100, ship.hull + 20);
+          ship.hull = Math.min(ship.maxHull || 100, (ship.hull !== void 0 ? ship.hull : 100) + 20);
           broadcast("The survivor fixed your main couplings! (+20 Hull, -10 Energy)", COLORS.GREEN);
           ship.currentEncounter = null;
         }, "execute")
@@ -1338,7 +1338,7 @@ var GAME_EVENTS = [
         execute: /* @__PURE__ */ __name((ship, player, broadcast) => {
           if (ship.fuel >= 15) {
             ship.fuel -= 15;
-            ship.hull = Math.min(ship.maxHull || 100, (ship.hull || 100) + 40);
+            ship.hull = Math.min(ship.maxHull || 100, (ship.hull !== void 0 ? ship.hull : 100) + 40);
             broadcast("They bless your ship. Hull plates glow with peace. (+40 Hull, -15 Fuel)", COLORS.GREEN);
           } else {
             broadcast("Not enough fuel.", COLORS.RED);
@@ -2165,6 +2165,7 @@ var GameServer = class {
   async destroyShip(shipId) {
     const ship = this.ships[shipId];
     if (!ship) return;
+    console.log(`[SYS] DESTROYING SHIP: ${ship.name} (${shipId})`);
     ship.crew.forEach((playerId) => {
       const player = this.players[playerId];
       if (player) {
@@ -3082,6 +3083,11 @@ var GameServer = class {
       ship.credits += creditsGained;
       broadcast(`[STATION] Sold ${amount} Scrap for ${creditsGained} Credits.`, "#00FF00");
       await this.saveState();
+    } else if (mainCmd === "suicide") {
+      this.send(ws, "log", { message: "CRITICAL FAILURE: SELF-DESTRUCT SEQUENCE INITIATED.", color: "#FF0000" });
+      ship.hull = 0;
+      await this.destroyShip(ship.id);
+      stateChanged = true;
     } else if (mainCmd === "look") {
       const target = args.length > 1 ? args.slice(1).join(" ").toLowerCase() : null;
       if (!target) {
@@ -3197,9 +3203,14 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
   startTick() {
     if (this.tickInterval) return;
     this.tickInterval = setInterval(async () => {
-      let stateChanged = false;
+      let stateChanged2 = false;
       for (const shipId in this.ships) {
         const ship = this.ships[shipId];
+        const mods = this.getShipModifiers(ship);
+        if (ship.hull === void 0 || isNaN(ship.hull)) {
+          ship.hull = 100 + (mods.maxHull || 0);
+          stateChanged2 = true;
+        }
         if (ship.maxEnergy === void 0) ship.maxEnergy = 50;
         if (ship.shieldsActive === void 0) ship.shieldsActive = false;
         if (ship.evadeActive === void 0) ship.evadeActive = false;
@@ -3217,7 +3228,6 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
             if (ses) this.send(ses.ws, "log", { message: text, color });
           });
         }, "broadcast");
-        const mods = this.getShipModifiers(ship);
         const maxH = 100 + mods.maxHull;
         const maxE = 50 + mods.maxEnergy;
         ship.maxEnergy = maxE;
@@ -3225,17 +3235,17 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
           let regen = ship.overclockActive ? 1 : 0.5;
           regen += mods.energyRegen;
           ship.energy = Math.min(maxE, ship.energy + regen);
-          stateChanged = true;
+          stateChanged2 = true;
         }
         if (ship.droneActive && Math.random() < 0.1) {
           ship.scrap += 1;
           broadcast(`[DRONE] Recovered 1 unit of scrap.`, "#00FF00");
-          stateChanged = true;
+          stateChanged2 = true;
         }
         if (ship.overclockActive && Math.random() < 0.05) {
           ship.fires += 1;
           broadcast(`WARNING: OVERCLOCKING HAS STARTED A SECONARY FIRE. (${ship.fires} total)`, "#FF0000");
-          stateChanged = true;
+          stateChanged2 = true;
         }
         if (ship.fires > 0) {
           let fireDmg = Math.floor(ship.fires * 2 * mods.fireResist);
@@ -3243,12 +3253,12 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
           if (Math.random() < 0.3) {
             broadcast(`[FIRE] Passive hull damage taken: ${fireDmg}`, "#FF0000");
           }
-          stateChanged = true;
+          stateChanged2 = true;
         }
         for (const room in ship.cooldowns) {
           if (ship.cooldowns[room] > 0) {
             ship.cooldowns[room] = Math.max(0, ship.cooldowns[room] - 1);
-            stateChanged = true;
+            stateChanged2 = true;
           }
         }
         if (ship.enemyModifiers.weaponsDisabled > 0) ship.enemyModifiers.weaponsDisabled--;
@@ -3289,7 +3299,7 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
                 broadcast(`[!] ${ship.currentEncounter.name.toUpperCase()} FIRED! Took ${dmg} DMG!`, "#FF0000");
                 ship.evadeActive = false;
               }
-              stateChanged = true;
+              stateChanged2 = true;
             }
           } else if (ship.jammedCooldown > 0 && Math.random() < 0.1) {
             broadcast(`[!] Enemy attempted to fire but targeting systems are JAMMED.`, "#00FFFF");
@@ -3297,27 +3307,27 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
         }
         if (ship.hull <= 0) {
           await this.destroyShip(ship.id);
-          stateChanged = true;
+          stateChanged2 = true;
           continue;
         }
         if (mods.autoHeal > 0 && ship.hull < maxH && Math.random() < mods.autoHeal) {
           ship.hull = Math.min(maxH, ship.hull + 1);
-          stateChanged = true;
+          stateChanged2 = true;
         }
         if (mods.autoDmg > 0 && ship.currentEncounter && (ship.currentEncounter.type === "ship" || ship.currentEncounter.type === "asteroid")) {
           ship.currentEncounter.hp -= mods.autoDmg;
           if (ship.currentEncounter.hp <= 0) {
             broadcast(`[SYSTEMS] AUTOMATED WEAPONS CRYSTALLIZED TARGET.`, "#00FF00");
           }
-          stateChanged = true;
+          stateChanged2 = true;
         }
         if (mods.passiveScrap > 0 && Math.random() < mods.passiveScrap) {
           ship.scrap += 1;
-          stateChanged = true;
+          stateChanged2 = true;
         }
         if (mods.passiveCredits > 0 && Math.random() < mods.passiveCredits) {
           ship.credits += 1;
-          stateChanged = true;
+          stateChanged2 = true;
         }
         ship.crew.forEach((mid) => {
           const ses = this.sessions.find((s) => s.playerId === mid);
@@ -3355,7 +3365,7 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
                 }, "broadcast");
                 broadcast(`[SENSORS] ${npc.name} passed through the sector but didn't notice us.`, "#00FF00");
                 npc.cooldown = 3;
-                stateChanged = true;
+                stateChanged2 = true;
               } else if (!targetShip.currentEncounter || targetShip.currentEncounter.id !== npc.id) {
                 targetShip.currentEncounter = {
                   id: npc.id,
@@ -3375,13 +3385,13 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
 --- WARNING: PROXIMITY ALERT! ---`, "#FF0000");
                 broadcast(`[!] ${npc.name.toUpperCase()} HAS ENGAGED YOU!`, "#FF0000");
                 npc.cooldown = 1;
-                stateChanged = true;
+                stateChanged2 = true;
               }
             } else if (npc.behavior === "flee" && npc.cooldown === 0) {
               const links = this.galaxy[npc.sector].links;
               npc.sector = links[Math.floor(Math.random() * links.length)];
               npc.cooldown = 2;
-              stateChanged = true;
+              stateChanged2 = true;
               playersInSector.forEach((ship) => {
                 const broadcast = /* @__PURE__ */ __name((text, color = "#FFFFFF") => {
                   ship.crew.forEach((memberId) => {
@@ -3400,7 +3410,7 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
               const links = this.galaxy[npc.sector].links;
               npc.sector = links[Math.floor(Math.random() * links.length)];
               npc.cooldown = 2;
-              stateChanged = true;
+              stateChanged2 = true;
             }
           }
         }
@@ -3424,10 +3434,10 @@ THROUGH THE VIEWPORT: ${sectorDesc}`;
             targetSector.encounterType = "ship";
             targetSector.encounterData = { hp: 50, name: "Scrap Pirate" };
           }
-          if (targetSector.encounterType) stateChanged = true;
+          if (targetSector.encounterType) stateChanged2 = true;
         }
       }
-      if (stateChanged) await this.saveState();
+      if (stateChanged2) await this.saveState();
     }, 1e3);
   }
 };

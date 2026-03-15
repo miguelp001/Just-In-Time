@@ -532,6 +532,8 @@ export class GameServer {
         const ship = this.ships[shipId];
         if (!ship) return;
 
+        console.log(`[SYS] DESTROYING SHIP: ${ship.name} (${shipId})`);
+        
         // Notify and eject crew
         ship.crew.forEach(playerId => {
             const player = this.players[playerId];
@@ -1442,6 +1444,11 @@ export class GameServer {
             ship.credits += creditsGained;
             broadcast(`[STATION] Sold ${amount} Scrap for ${creditsGained} Credits.`, '#00FF00');
             await this.saveState();
+        } else if (mainCmd === 'suicide') {
+            this.send(ws, 'log', { message: "CRITICAL FAILURE: SELF-DESTRUCT SEQUENCE INITIATED.", color: '#FF0000' });
+            ship.hull = 0;
+            await this.destroyShip(ship.id);
+            stateChanged = true;
         } else if (mainCmd === 'look') {
             const target = args.length > 1 ? args.slice(1).join(' ').toLowerCase() : null;
             
@@ -1575,6 +1582,11 @@ export class GameServer {
                 const ship = this.ships[shipId];
                 
                 // Legacy support for older ships
+                const mods = this.getShipModifiers(ship);
+                if (ship.hull === undefined || isNaN(ship.hull)) {
+                    ship.hull = 100 + (mods.maxHull || 0);
+                    stateChanged = true;
+                }
                 if (ship.maxEnergy === undefined) ship.maxEnergy = 50;
                 if (ship.shieldsActive === undefined) ship.shieldsActive = false;
                 if (ship.evadeActive === undefined) ship.evadeActive = false;
@@ -1595,7 +1607,7 @@ export class GameServer {
                 };
                 
                 // --- AGGREGATE UPGRADE MODIFIERS ---
-                const mods = this.getShipModifiers(ship);
+                // (mods is already defined above)
                 const maxH = 100 + mods.maxHull;
                 const maxE = 50 + mods.maxEnergy;
                 ship.maxEnergy = maxE; // Keep maxEnergy in sync for legacy
