@@ -3,7 +3,6 @@ compatibility_date = "2024-03-14"
 
 [assets]
 directory = "."
-binding = "ASSETS"
 
 # Explicitly exclude node_modules and other large/unnecessary files
 exclude = [
