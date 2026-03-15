@@ -158,7 +158,14 @@ class MainScene extends Phaser.Scene {
 
         this.socket.onopen = () => {
             this.logMessage(`Uplink secured. Ready.`, COLORS.GREEN);
-            this.socket.connected = true; // For compatibility with local check
+            this.socket.connected = true; 
+            
+            // --- PERSISTENCE: Send init with saved token ---
+            const savedId = localStorage.getItem('jit_player_id');
+            this.socket.send(JSON.stringify({ 
+                type: 'init', 
+                playerId: savedId 
+            }));
         };
 
         this.socket.onmessage = (event) => {
@@ -168,6 +175,9 @@ class MainScene extends Phaser.Scene {
 
                 if (type === 'log') {
                     this.logMessage(`[SYS] ${data.message}`, data.color || COLORS.WHITE);
+                } else if (type === 'identity') {
+                    localStorage.setItem('jit_player_id', data.id);
+                    this.logMessage(`IDENTITY RECOGNIZED: ${data.id.slice(0, 8)}...`, COLORS.GREEN);
                 } else if (type === 'chat') {
                     this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
                 } else if (type === 'update_ui') {

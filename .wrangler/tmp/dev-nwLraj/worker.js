@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// .wrangler/tmp/bundle-mr8hhj/checked-fetch.js
+// .wrangler/tmp/bundle-ZYjvud/checked-fetch.js
 var urls = /* @__PURE__ */ new Set();
 function checkURL(request, init) {
   const url = request instanceof URL ? request : new URL(
@@ -1583,10 +1583,6 @@ var GAME_EVENTS = [
     ]
   }
 ];
-function getRandomEvent() {
-  return GAME_EVENTS[Math.floor(Math.random() * GAME_EVENTS.length)];
-}
-__name(getRandomEvent, "getRandomEvent");
 
 // worker.js
 var NUM_SECTORS = 200;
@@ -1606,25 +1602,35 @@ var GameServer = class {
     this.ships = {};
     this.players = {};
     this.galaxy = {};
+    this.npcs = {};
     this.shipCounter = 1;
+    this.npcCounter = 1;
     this.pendingRequests = {};
     this.sessions = [];
     this.state.blockConcurrencyWhile(async () => {
-      let stored = await this.state.storage.get(["ships", "players", "galaxy", "shipCounter", "pendingRequests"]);
+      let stored = await this.state.storage.get(["ships", "players", "galaxy", "npcs", "shipCounter", "npcCounter", "pendingRequests"]);
       this.ships = stored.get("ships") || {};
       this.players = stored.get("players") || {};
       this.galaxy = stored.get("galaxy") || {};
+      this.npcs = stored.get("npcs") || {};
       this.shipCounter = stored.get("shipCounter") || 1;
+      this.npcCounter = stored.get("npcCounter") || 1;
       this.pendingRequests = stored.get("pendingRequests") || {};
       if (Object.keys(this.galaxy).length === 0) {
         this.generateGalaxy();
         await this.state.storage.put("galaxy", this.galaxy);
       }
+      if (Object.keys(this.npcs).length === 0) {
+        this.setupNPCs();
+        await this.state.storage.put("npcs", this.npcs);
+        await this.state.storage.put("npcCounter", this.npcCounter);
+      }
+      this.startTick();
     });
   }
   generateGalaxy() {
     for (let i = 1; i <= NUM_SECTORS; i++) {
-      this.galaxy[i] = { id: i, links: [] };
+      this.galaxy[i] = { id: i, links: [], encounterType: null, encounterData: null };
     }
     for (let i = 1; i <= NUM_SECTORS; i++) {
       const numLinks = Math.floor(Math.random() * 3) + 2;
@@ -1637,7 +1643,58 @@ var GameServer = class {
           }
         }
       }
+      const encounterRoll = Math.random();
+      if (encounterRoll < 0.25) {
+        const evTemplate = GAME_EVENTS[Math.floor(Math.random() * GAME_EVENTS.length)];
+        this.galaxy[i].encounterType = evTemplate.type;
+        this.galaxy[i].encounterData = { id: evTemplate.id };
+      } else if (encounterRoll < 0.4) {
+        this.galaxy[i].encounterType = "asteroid";
+        this.galaxy[i].encounterData = { hp: 30, name: "Asteroid" };
+      } else if (encounterRoll < 0.45) {
+        this.galaxy[i].encounterType = "ship";
+        this.galaxy[i].encounterData = { hp: 50, name: "Scrap Pirate" };
+      }
     }
+  }
+  clearGlobalEncounter(sector) {
+    if (this.galaxy[sector]) {
+      this.galaxy[sector].encounterType = null;
+      this.galaxy[sector].encounterData = null;
+      Object.values(this.ships).forEach((s) => {
+        if (s.sector === sector && s.currentEncounter && !s.currentEncounter.isGlobalNPC) {
+          s.currentEncounter = null;
+          s.crew.forEach((mid) => {
+            const ses = this.sessions.find((ses2) => ses2.playerId === mid);
+            if (ses) this.send(ses.ws, "log", { message: `[SENSORS] Local encounter signature dissipated.`, color: "#AAAAAA" });
+          });
+        }
+      });
+    }
+  }
+  setupNPCs() {
+    const spawnNPC = /* @__PURE__ */ __name((type, baseName, count, hp, behavior) => {
+      for (let i = 0; i < count; i++) {
+        const id = `N-${this.npcCounter.toString().padStart(3, "0")}`;
+        this.npcCounter++;
+        const sector = Math.floor(Math.random() * NUM_SECTORS) + 1;
+        this.npcs[id] = {
+          id,
+          type,
+          name: `${baseName} ${Math.floor(Math.random() * 1e3)}`,
+          sector,
+          hp,
+          maxHp: hp,
+          behavior,
+          // 'aggressive', 'flee', 'neutral'
+          cooldown: 0
+        };
+      }
+    }, "spawnNPC");
+    spawnNPC("pirate", "Pirate Dreadnaught", 10, 150, "aggressive");
+    spawnNPC("merchant", "Nomad Merchant", 5, 50, "flee");
+    spawnNPC("leviathan", "Void Leviathan", 5, 300, "neutral");
+    spawnNPC("scavenger", "Scrap Scavenger", 5, 50, "neutral");
   }
   async fetch(request) {
     const upgradeHeader = request.headers.get("Upgrade");
@@ -1653,24 +1710,54 @@ var GameServer = class {
   }
   async handleSession(ws) {
     ws.accept();
-    const id = crypto.randomUUID();
-    const session = { id, ws, playerId: null };
+    const session = { id: crypto.randomUUID(), ws, playerId: null };
     this.sessions.push(session);
-    const newPlayer = {
-      id,
-      name: `Guest-${Math.floor(Math.random() * 1e3)}`,
-      state: "LOBBY",
-      room: "Bridge",
-      shipId: null
-    };
-    this.players[id] = newPlayer;
-    session.playerId = id;
-    this.send(ws, "log", { message: `CONNECTION ESTABLISHED. WELCOME TO SPIRAL NEBULA LOBBY.`, color: "#00FF00" });
-    this.send(ws, "log", { message: `Type 'help' to see all available commands.`, color: "#AAAAAA" });
-    this.send(ws, "update_ui", { state: "LOBBY" });
     ws.addEventListener("message", async (msg) => {
       try {
         const data = JSON.parse(msg.data);
+        if (data.type === "init") {
+          let playerId = data.playerId;
+          let player = null;
+          if (playerId && this.players[playerId]) {
+            player = this.players[playerId];
+            this.send(ws, "log", { message: `RECONSECUTIVE UPLINK RESTORED. WELCOME BACK, ${player.name}.`, color: "#00FF00" });
+          } else {
+            playerId = crypto.randomUUID();
+            player = {
+              id: playerId,
+              name: `Guest-${Math.floor(Math.random() * 1e3)}`,
+              state: "LOBBY",
+              room: "Bridge",
+              shipId: null
+            };
+            this.players[playerId] = player;
+            this.send(ws, "log", { message: `NEW UPLINK ESTABLISHED. WELCOME TO SPIRAL NEBULA LOBBY.`, color: "#00FF00" });
+          }
+          session.playerId = playerId;
+          this.send(ws, "identity", { id: playerId });
+          if (player.state === "IN_GAME" && player.shipId && this.ships[player.shipId]) {
+            const ship = this.ships[player.shipId];
+            if (!ship.crew.includes(playerId)) ship.crew.push(playerId);
+            this.send(ws, "update_ui", { state: "IN_GAME", location: player.room, sector: ship.sector });
+            this.send(ws, "ship_sync", {
+              hull: { current: ship.hull, max: 100 },
+              fuel: { current: ship.fuel, max: 100 },
+              energy: { current: ship.energy, max: ship.maxEnergy },
+              scrap: ship.scrap,
+              cooldowns: ship.cooldowns
+            });
+            this.broadcastToShip(ship.id, {
+              type: "log",
+              data: { message: `[SYS] ${player.name} reconnected.`, color: "#00FF00" }
+            });
+          } else {
+            this.send(ws, "update_ui", { state: "LOBBY" });
+          }
+          this.send(ws, "log", { message: `Type 'help' to see all available commands.`, color: "#AAAAAA" });
+          await this.saveState();
+          return;
+        }
+        if (!session.playerId) return;
         if (data.type === "command") {
           await this.handleCommand(session, data.cmd);
         }
@@ -1679,23 +1766,19 @@ var GameServer = class {
       }
     });
     ws.addEventListener("close", async () => {
-      this.sessions = this.sessions.filter((s) => s.id !== id);
-      const p = this.players[id];
-      if (p && p.shipId) {
-        const ship = this.ships[p.shipId];
-        if (ship) {
-          ship.crew = ship.crew.filter((cid) => cid !== id);
-          this.broadcastToShip(ship.id, {
-            type: "log",
-            data: { message: `[SYS] ${p.name} disconnected.`, color: "#FF0000" }
-          });
-          if (ship.crew.length === 0) {
-            delete this.ships[ship.id];
-            delete this.pendingRequests[ship.id];
+      this.sessions = this.sessions.filter((s) => s.id !== session.id);
+      if (session.playerId) {
+        const p = this.players[session.playerId];
+        if (p && p.shipId) {
+          const ship = this.ships[p.shipId];
+          if (ship) {
+            this.broadcastToShip(ship.id, {
+              type: "log",
+              data: { message: `[SYS] ${p.name} disconnected.`, color: "#FF0000" }
+            });
           }
         }
       }
-      delete this.players[id];
       await this.saveState();
     });
   }
@@ -1753,7 +1836,22 @@ var GameServer = class {
         scrap: 15,
         currentEncounter: null,
         cooldowns: { "Bridge": 0, "Weapons Cntrl": 0, "Cargo Bay": 0, "Engineering": 0 },
-        crew: [player.id]
+        crew: [player.id],
+        // Phase 15 state variables
+        shieldsActive: false,
+        evadeActive: false,
+        jammedCooldown: 0,
+        chaffActive: false,
+        overchargeActive: false,
+        droneActive: false,
+        hideActive: false,
+        overclockActive: false,
+        fires: 0,
+        enemyModifiers: {
+          weaponsDisabled: 0,
+          enginesDisabled: 0,
+          emped: 0
+        }
       };
       player.state = "IN_GAME";
       player.shipId = newShipId;
@@ -1858,6 +1956,9 @@ var GameServer = class {
             return;
           }
           eventOpt.execute(ship, player, broadcast);
+          if (!ship.currentEncounter) {
+            this.clearGlobalEncounter(ship.sector);
+          }
           return;
         } else {
           this.send(ws, "log", { message: `ERROR: Invalid action during event.`, color: "#FF0000" });
@@ -1922,10 +2023,123 @@ var GameServer = class {
         this.send(ws, "log", { message: `ERROR: Unknown room.`, color: "#FF0000" });
       }
     } else if (mainCmd === "scan") {
-      const sectorData = this.galaxy[ship.sector];
-      this.send(ws, "log", { message: `--- LONG RANGE SCANNERS ---`, color: "#FFFF00" });
-      this.send(ws, "log", { message: `Current Sector: ${ship.sector}`, color: "#FFFFFF" });
-      this.send(ws, "log", { message: `Linked Jump Points: ${sectorData.links.join(", ")}`, color: "#00FFFF" });
+      if (player.room !== ROOMS["bridge"]) {
+        this.send(ws, "log", { message: "ERROR: SCANNERS ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
+        return;
+      }
+      if (args[1] === "deep") {
+        if (ship.energy < 5) {
+          this.send(ws, "log", { message: "ERROR: INSUFFICIENT ENERGY FOR DEEP SCAN.", color: "#FF0000" });
+          return;
+        }
+        ship.energy -= 5;
+        const sectorData = this.galaxy[ship.sector];
+        this.send(ws, "log", { message: `--- DEEP SPACE SCAN ---`, color: "#00FFFF" });
+        this.send(ws, "log", { message: `Adjacent Sectors analyzed.`, color: "#FFFFFF" });
+        let npcsFound = false;
+        sectorData.links.forEach((linkedSector) => {
+          const npcsInAdj = Object.values(this.npcs).filter((n) => n.sector === linkedSector && n.hp > 0);
+          npcsInAdj.forEach((n) => {
+            this.send(ws, "log", { message: `[SECTOR ${linkedSector}] Detected ${n.name}`, color: "#FFFF00" });
+            npcsFound = true;
+          });
+        });
+        if (!npcsFound) this.send(ws, "log", { message: `No significant entities detected in adjacent sectors.`, color: "#AAAAAA" });
+        broadcast(`[BRIDGE] ${player.name} initiated a Deep Space Scan. (-5 Energy)`, "#00FFFF");
+      } else {
+        const sectorData = this.galaxy[ship.sector];
+        this.send(ws, "log", { message: `--- LONG RANGE SCANNERS ---`, color: "#FFFF00" });
+        this.send(ws, "log", { message: `Current Sector: ${ship.sector}`, color: "#FFFFFF" });
+        this.send(ws, "log", { message: `Linked Jump Points: ${sectorData.links.join(", ")}`, color: "#00FFFF" });
+        const localNpcs = Object.values(this.npcs).filter((n) => n.sector === ship.sector && n.hp > 0);
+        if (localNpcs.length > 0) {
+          this.send(ws, "log", { message: `--- LOCAL ENTITIES DETECTED ---`, color: "#FF00FF" });
+          localNpcs.forEach((n) => {
+            this.send(ws, "log", { message: `- ${n.name} [${n.type.toUpperCase()}]`, color: "#FFFFFF" });
+          });
+        }
+      }
+    } else if (mainCmd === "hail") {
+      if (player.room !== ROOMS["bridge"]) {
+        this.send(ws, "log", { message: "ERROR: COMMS ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
+        return;
+      }
+      if (ship.currentEncounter && ship.currentEncounter.type === "ship") {
+        if (ship.currentEncounter.isGlobalNPC) {
+          const globalNpc = this.npcs[ship.currentEncounter.id];
+          if (globalNpc && globalNpc.type === "merchant") {
+            if (ship.scrap >= 20) {
+              ship.scrap -= 20;
+              ship.fuel += 50;
+              ship.energy += 50;
+              broadcast(`[COMM] ${globalNpc.name}: "A pleasure doing business." (Traded 20 Scrap for 50 Fuel & Energy)`, "#00FF00");
+              globalNpc.cooldown = 0;
+            } else {
+              broadcast(`[COMM] ${globalNpc.name}: "Come back when you have 20 units of scrap."`, "#AAAAAA");
+            }
+          } else if (globalNpc && globalNpc.type === "pirate") {
+            broadcast(`[COMM] ${globalNpc.name}: "We only deal in laser blasts."`, "#FF0000");
+          } else {
+            broadcast(`[COMM] Hailing the entity... No response.`, "#00FFFF");
+          }
+        } else {
+          broadcast(`[BRIDGE] Hailing ${ship.currentEncounter.name}... No response.`, "#00FFFF");
+        }
+      } else {
+        const localMerchant = Object.values(this.npcs).find((n) => n.sector === ship.sector && n.type === "merchant" && n.hp > 0);
+        if (localMerchant) {
+          if (ship.scrap >= 20) {
+            ship.scrap -= 20;
+            ship.fuel += 50;
+            ship.energy += 50;
+            broadcast(`[COMM] ${localMerchant.name}: "A pleasure doing business." (Traded 20 Scrap for 50 Fuel & Energy)`, "#00FF00");
+          } else {
+            broadcast(`[COMM] ${localMerchant.name}: "Come back when you have 20 units of scrap."`, "#AAAAAA");
+          }
+        } else {
+          this.send(ws, "log", { message: "ERROR: NO VALID TARGET TO HAIL.", color: "#FF0000" });
+        }
+      }
+    } else if (mainCmd === "shields") {
+      if (player.room !== ROOMS["bridge"]) {
+        this.send(ws, "log", { message: "ERROR: SHIELDS ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
+        return;
+      }
+      if (ship.energy < 5) {
+        this.send(ws, "log", { message: "ERROR: INSUFFICIENT ENERGY.", color: "#FF0000" });
+        return;
+      }
+      ship.energy -= 5;
+      ship.shieldsActive = true;
+      broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-5 Energy)`, "#00FFFF");
+    } else if (mainCmd === "evade") {
+      if (player.room !== ROOMS["bridge"]) {
+        this.send(ws, "log", { message: "ERROR: HELM ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
+        return;
+      }
+      if (ship.cooldowns["Bridge"] > 0) {
+        this.send(ws, "log", { message: "ERROR: BRIDGE CONTROLS ON COOLDOWN.", color: "#FF0000" });
+        return;
+      }
+      ship.evadeActive = true;
+      ship.cooldowns["Bridge"] = 3;
+      broadcast(`[BRIDGE] EVASIVE MANEUVERS INITIATED. BRACING FOR IMPACT.`, "#00FFFF");
+    } else if (mainCmd === "jam") {
+      if (player.room !== ROOMS["bridge"]) {
+        this.send(ws, "log", { message: "ERROR: COMMS ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
+        return;
+      }
+      if (!ship.currentEncounter || ship.currentEncounter.type !== "ship") {
+        this.send(ws, "log", { message: "ERROR: NO COMBAT TARGET TO JAM.", color: "#FF0000" });
+        return;
+      }
+      if (ship.energy < 8) {
+        this.send(ws, "log", { message: "ERROR: INSUFFICIENT ENERGY (8 REQ).", color: "#FF0000" });
+        return;
+      }
+      ship.energy -= 8;
+      ship.jammedCooldown = 3;
+      broadcast(`[BRIDGE] ELECTRONIC COUNTERMEASURES DEPLOYED. ENEMY SENSORS JAMMED.`, "#00FFFF");
     } else if (mainCmd === "jump") {
       if (player.room !== ROOMS["bridge"]) {
         this.send(ws, "log", { message: "ERROR: JUMP MUST BE EXECUTED FROM THE BRIDGE.", color: "#FF0000" });
@@ -1952,75 +2166,321 @@ var GameServer = class {
                 this.send(s.ws, "log", { message: SECTOR_FLAVOR[Math.floor(Math.random() * SECTOR_FLAVOR.length)], color: "#AAAAAA" });
               }
             });
-            this.generateEncounter(ship, broadcast);
+            const encType = this.galaxy[destSector].encounterType;
+            const encData = this.galaxy[destSector].encounterData;
+            if (encType && encData) {
+              if (encType === "asteroid") {
+                ship.currentEncounter = { type: "asteroid", hp: encData.hp, name: encData.name };
+                broadcast(`--- SENSORS DETECT AN ASTEROID ---`, "#FFFF00");
+              } else if (encType === "ship") {
+                ship.currentEncounter = { type: "ship", hp: encData.hp, name: encData.name };
+                broadcast(`--- PROXIMITY ALERT! ---`, "#FF0000");
+                broadcast(`[!] ${encData.name.toUpperCase()} LIES IN AMBUSH!`, "#FF0000");
+              } else {
+                const template = GAME_EVENTS.find((e) => e.id === encData.id);
+                if (template) {
+                  ship.currentEncounter = Object.assign({}, template);
+                  broadcast(`
+--- SENSORS DETECT AN OBJECT ---`, "#FFFF00");
+                  broadcast(`${template.title.toUpperCase()} [${template.type.toUpperCase()}]`, "#00FFFF");
+                  broadcast(template.text, "#FFFFFF");
+                  if (template.options) {
+                    broadcast("ACTIONS: " + template.options.map((o) => `'${o.command}'`).join(", "), "#AAAAAA");
+                  }
+                } else {
+                  ship.currentEncounter = null;
+                }
+              }
+            } else {
+              ship.currentEncounter = null;
+            }
             await this.saveState();
           }
         }, 2e3);
       } else {
         this.send(ws, "log", { message: "ERROR: Invalid jump path or no fuel.", color: "#FF0000" });
       }
-    } else if (mainCmd === "attack") {
+    } else if (mainCmd === "attack" || mainCmd === "target" || mainCmd === "emp" || mainCmd === "chaff" || mainCmd === "overcharge" || mainCmd === "flak") {
       if (player.room !== ROOMS["weapons"]) {
         this.send(ws, "log", { message: "ERROR: WEAPONS MUST BE EXECUTED FROM WEAPONS CNTRL.", color: "#FF0000" });
         return;
       }
-      if (ship.cooldowns["Weapons Cntrl"] > 0 || ship.energy < 5) {
-        this.send(ws, "log", { message: "ERROR: Weapons cooling down or low energy.", color: "#FF0000" });
+      if (ship.cooldowns["Weapons Cntrl"] > 0) {
+        this.send(ws, "log", { message: "ERROR: Weapons cooling down.", color: "#FF0000" });
         return;
       }
-      if (ship.currentEncounter && (ship.currentEncounter.type === "ship" || ship.currentEncounter.type === "asteroid")) {
+      const noTargetErr = /* @__PURE__ */ __name(() => this.send(ws, "log", { message: "ERROR: NO TARGETS.", color: "#FF0000" }), "noTargetErr");
+      const noEnergyErr = /* @__PURE__ */ __name((cost) => this.send(ws, "log", { message: `ERROR: LOW ENERGY. (${cost} REQ)`, color: "#FF0000" }), "noEnergyErr");
+      if (!ship.currentEncounter || ship.currentEncounter.type !== "ship" && ship.currentEncounter.type !== "asteroid") {
+        const targetableNpc = Object.values(this.npcs).find((n) => n.sector === ship.sector && n.hp > 0 && n.type !== "merchant");
+        if (targetableNpc && (mainCmd === "attack" || mainCmd === "target" || mainCmd === "emp" || mainCmd === "chaff" || mainCmd === "overcharge" || mainCmd === "flak")) {
+          ship.currentEncounter = {
+            id: targetableNpc.id,
+            type: "ship",
+            name: targetableNpc.name,
+            hp: targetableNpc.hp,
+            maxHp: targetableNpc.maxHp,
+            isGlobalNPC: true
+          };
+          broadcast(`[WEAPONS] TARGET LOCKED: ${targetableNpc.name.toUpperCase()}`, "#FF0000");
+        } else {
+          noTargetErr();
+          return;
+        }
+      }
+      if (mainCmd === "attack") {
+        if (ship.energy < 5) return noEnergyErr(5);
         ship.energy -= 5;
         ship.cooldowns["Weapons Cntrl"] = 3;
-        const dmg = Math.floor(Math.random() * 20) + 10;
+        let dmg = Math.floor(Math.random() * 20) + 10;
+        if (ship.overchargeActive) {
+          dmg *= 2;
+          ship.overchargeActive = false;
+          broadcast(`[WEAPONS] OVERCHARGED BEAM FIRED! DEVASTATING DAMAGE!`, "#FF0000");
+        }
         ship.currentEncounter.hp -= dmg;
         broadcast(`[WEAPONS] Hit ${ship.currentEncounter.name || "Asteroid"} for ${dmg} DMG.`, "#FF00FF");
-        if (ship.currentEncounter.hp <= 0) {
-          broadcast(`** TARGET DESTROYED **`, "#00FF00");
-          if (ship.currentEncounter.type === "ship") {
-            const scrap = Math.floor(Math.random() * 30) + 10;
-            ship.scrap += scrap;
-            broadcast(`Salvaged ${scrap} Scrap.`, "#00FF00");
-          }
-          ship.currentEncounter = null;
+      } else if (mainCmd === "target") {
+        if (ship.energy < 8) return noEnergyErr(8);
+        const sysTarget = args[1]?.toLowerCase();
+        if (sysTarget === "weapons") {
+          ship.enemyModifiers.weaponsDisabled = 3;
+          broadcast(`[WEAPONS] TARGETED FIRE ON ENEMY WEAPONS. DAMAGE OUTPUT REUDCED.`, "#FF00FF");
+        } else if (sysTarget === "engines") {
+          ship.enemyModifiers.enginesDisabled = 3;
+          broadcast(`[WEAPONS] TARGETED FIRE ON ENEMY ENGINES. THEY CANNOT FLEE.`, "#FF00FF");
+        } else {
+          this.send(ws, "log", { message: "ERROR: Valid targets: 'weapons', 'engines'.", color: "#FF0000" });
+          return;
         }
-      } else {
-        this.send(ws, "log", { message: "ERROR: NO TARGETS.", color: "#FF0000" });
+        ship.energy -= 8;
+        ship.cooldowns["Weapons Cntrl"] = 4;
+      } else if (mainCmd === "emp") {
+        if (ship.scrap < 10) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 10 SCRAP TO BUILD EMP TORPEDO.", color: "#FF0000" });
+          return;
+        }
+        if (ship.currentEncounter.type !== "ship") {
+          this.send(ws, "log", { message: "ERROR: EMP ONLY AFFECTS SHIPS.", color: "#FF0000" });
+          return;
+        }
+        ship.scrap -= 10;
+        ship.enemyModifiers.emped = 4;
+        ship.cooldowns["Weapons Cntrl"] = 5;
+        broadcast(`[WEAPONS] EMP TORPEDO DEPLOYED! ENEMY SYSTEMS OFFLINE!`, "#00FFFF");
+      } else if (mainCmd === "chaff") {
+        if (ship.energy < 5) return noEnergyErr(5);
+        ship.energy -= 5;
+        ship.chaffActive = true;
+        ship.cooldowns["Weapons Cntrl"] = 2;
+        broadcast(`[WEAPONS] COUNTERMEASURES DEPLOYED. NEXT ATTACK WILL BE DEFLECTED.`, "#FF00FF");
+      } else if (mainCmd === "overcharge") {
+        if (ship.energy < 15) return noEnergyErr(15);
+        ship.energy -= 15;
+        ship.hull -= 5;
+        ship.overchargeActive = true;
+        ship.cooldowns["Weapons Cntrl"] = 2;
+        broadcast(`[WEAPONS] WARNING: WEAPONS OVERCHARGED. HULL TOOK 5 DMG FROM HEAT.`, "#FF0000");
+      } else if (mainCmd === "flak") {
+        if (ship.scrap < 5) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 5 SCRAP AMMO.", color: "#FF0000" });
+          return;
+        }
+        ship.scrap -= 5;
+        ship.cooldowns["Weapons Cntrl"] = 2;
+        const dmg = Math.floor(Math.random() * 15) + 5;
+        ship.currentEncounter.hp -= dmg;
+        broadcast(`[WEAPONS] FLAK CANNON FIRED! Hit for ${dmg} DMG.`, "#FF00FF");
       }
-    } else if (mainCmd === "repair") {
+      if (ship.currentEncounter && ship.currentEncounter.hp <= 0) {
+        broadcast(`** TARGET DESTROYED **`, "#00FF00");
+        if (ship.currentEncounter.type === "ship") {
+          const scrap = Math.floor(Math.random() * 30) + 10;
+          ship.scrap += scrap;
+          broadcast(`Salvaged ${scrap} Scrap.`, "#00FF00");
+        }
+        if (ship.currentEncounter.isGlobalNPC && this.npcs[ship.currentEncounter.id]) {
+          this.npcs[ship.currentEncounter.id].hp = 0;
+        } else if (!ship.currentEncounter.isGlobalNPC) {
+          this.clearGlobalEncounter(ship.sector);
+        }
+        ship.currentEncounter = null;
+      } else if (ship.currentEncounter && ship.currentEncounter.isGlobalNPC && this.npcs[ship.currentEncounter.id]) {
+        this.npcs[ship.currentEncounter.id].hp = ship.currentEncounter.hp;
+      }
+    } else if (mainCmd === "repair" || mainCmd === "reroute" || mainCmd === "patch" || mainCmd === "overclock" || mainCmd === "siphon" || mainCmd === "vent") {
       if (player.room !== ROOMS["engineering"]) {
-        this.send(ws, "log", { message: "ERROR: REPAIR MUST BE EXECUTED FROM ENGINEERING.", color: "#FF0000" });
+        this.send(ws, "log", { message: "ERROR: MUST BE EXECUTED FROM ENGINEERING.", color: "#FF0000" });
         return;
       }
-      if (ship.cooldowns["Engineering"] > 0 || ship.scrap < 5 || ship.hull >= 100) {
-        this.send(ws, "log", { message: "ERROR: Cannot repair now.", color: "#FF0000" });
+      if (ship.cooldowns["Engineering"] > 0) {
+        this.send(ws, "log", { message: "ERROR: ENGINEERING SYSTEMS ON COOLDOWN.", color: "#FF0000" });
         return;
       }
-      ship.scrap -= 5;
-      ship.hull = Math.min(100, ship.hull + 10);
-      ship.cooldowns["Engineering"] = 5;
-      broadcast(`[ENGINEERING] Hull repaired by ${player.name}.`, "#00FF00");
-    } else if (mainCmd === "mine") {
-      if (player.room !== ROOMS["cargo"]) {
-        this.send(ws, "log", { message: "ERROR: MINE MUST BE EXECUTED FROM CARGO BAY.", color: "#FF0000" });
-        return;
-      }
-      if (ship.cooldowns["Cargo Bay"] > 0 || ship.energy < 2) {
-        this.send(ws, "log", { message: "ERROR: Mining lasers cooling or low energy.", color: "#FF0000" });
-        return;
-      }
-      if (ship.currentEncounter && ship.currentEncounter.type === "asteroid") {
-        ship.energy -= 2;
-        ship.cooldowns["Cargo Bay"] = 3;
-        const yieldAmt = Math.floor(Math.random() * 5) + 2;
-        ship.scrap += yieldAmt;
-        ship.currentEncounter.hp -= 10;
-        broadcast(`[CARGO] ${player.name} mined ${yieldAmt} Scrap.`, "#00FF00");
-        if (ship.currentEncounter.hp <= 0) {
-          broadcast(`ASTEROID DEPLETED.`, "#AAAAAA");
-          ship.currentEncounter = null;
+      if (mainCmd === "repair") {
+        if (ship.scrap < 5 || ship.hull >= 100) {
+          this.send(ws, "log", { message: "ERROR: Requires 5 Scrap or Hull is already full.", color: "#FF0000" });
+          return;
         }
+        ship.scrap -= 5;
+        ship.hull = Math.min(100, ship.hull + 10);
+        ship.cooldowns["Engineering"] = 5;
+        broadcast(`[ENGINEERING] Heavy hull repair complete. (+10 Hull)`, "#00FF00");
+      } else if (mainCmd === "reroute") {
+        const targetRoomStr = args[1]?.toLowerCase();
+        let targetRoomMap = { "bridge": "Bridge", "weapons": "Weapons Cntrl", "cargo": "Cargo Bay" };
+        let mapped = targetRoomMap[targetRoomStr];
+        if (!mapped) {
+          this.send(ws, "log", { message: "ERROR: reroute <bridge|weapons|cargo>", color: "#FF0000" });
+          return;
+        }
+        if (ship.energy < 15) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 15 ENERGY.", color: "#FF0000" });
+          return;
+        }
+        ship.energy -= 15;
+        ship.cooldowns[mapped] = 0;
+        ship.cooldowns["Engineering"] = 4;
+        broadcast(`[ENGINEERING] Power rerouted to ${mapped}! Cooldowns cleared.`, "#00FFFF");
+      } else if (mainCmd === "patch") {
+        ship.hull = Math.min(100, ship.hull + 2);
+        ship.cooldowns["Engineering"] = 2;
+        broadcast(`[ENGINEERING] Emergency micro-patch applied. (+2 Hull)`, "#00FF00");
+      } else if (mainCmd === "overclock") {
+        if (ship.overclockActive) {
+          ship.overclockActive = false;
+          broadcast(`[ENGINEERING] REACTOR OVERCLOCK DISABLED.`, "#00FFFF");
+        } else {
+          ship.overclockActive = true;
+          broadcast(`[ENGINEERING] WARNING: REACTOR OVERCLOCKED. ENERGY REGEN INCREASED. FIRE RISK HIGH.`, "#FF0000");
+        }
+        ship.cooldowns["Engineering"] = 3;
+      } else if (mainCmd === "siphon") {
+        if (ship.energy < 40) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 40 ENERGY TO SYNTHESIZE FUEL.", color: "#FF0000" });
+          return;
+        }
+        ship.energy -= 40;
+        ship.fuel += 1;
+        ship.cooldowns["Engineering"] = 5;
+        broadcast(`[ENGINEERING] Emergency siphon complete. Synthesized 1 Jump Fuel.`, "#00FF00");
+      } else if (mainCmd === "vent") {
+        if (ship.fires > 0) {
+          broadcast(`[ENGINEERING] Plasma vents opened. ${ship.fires} fires extinguished!`, "#00FFFF");
+          ship.fires = 0;
+        } else {
+          broadcast(`[ENGINEERING] Vents cycled. No hazards detected.`, "#AAAAAA");
+        }
+        ship.cooldowns["Engineering"] = 4;
+      }
+    } else if (mainCmd === "mine" || mainCmd === "refine" || mainCmd === "airlock" || mainCmd === "probe" || mainCmd === "drone" || mainCmd === "hide") {
+      if (player.room !== ROOMS["cargo"]) {
+        this.send(ws, "log", { message: "ERROR: MUST BE EXECUTED FROM CARGO BAY.", color: "#FF0000" });
+        return;
+      }
+      if (ship.cooldowns["Cargo Bay"] > 0) {
+        this.send(ws, "log", { message: "ERROR: CARGO SYSTEMS ON COOLDOWN.", color: "#FF0000" });
+        return;
+      }
+      if (mainCmd === "mine") {
+        if (ship.energy < 2) {
+          this.send(ws, "log", { message: "ERROR: Low energy.", color: "#FF0000" });
+          return;
+        }
+        if (ship.currentEncounter && ship.currentEncounter.type === "asteroid") {
+          ship.energy -= 2;
+          ship.cooldowns["Cargo Bay"] = 3;
+          const yieldAmt = Math.floor(Math.random() * 5) + 2;
+          ship.scrap += yieldAmt;
+          ship.currentEncounter.hp -= 10;
+          broadcast(`[CARGO] ${player.name} mined ${yieldAmt} Scrap.`, "#00FF00");
+          if (ship.currentEncounter.hp <= 0) {
+            broadcast(`ASTEROID DEPLETED.`, "#AAAAAA");
+            ship.currentEncounter = null;
+          }
+        } else {
+          this.send(ws, "log", { message: "ERROR: NO ASTEROID.", color: "#FF0000" });
+        }
+      } else if (mainCmd === "refine") {
+        if (ship.scrap < 10) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 10 SCRAP.", color: "#FF0000" });
+          return;
+        }
+        const targetRes = args[1]?.toLowerCase();
+        if (targetRes === "fuel") {
+          ship.scrap -= 10;
+          ship.fuel += 5;
+          broadcast(`[CARGO] 10 Scrap refined into 5 Jump Fuel.`, "#00FF00");
+        } else if (targetRes === "energy") {
+          ship.scrap -= 10;
+          ship.energy = Math.min(ship.maxEnergy, ship.energy + 20);
+          broadcast(`[CARGO] 10 Scrap refined into 20 Energy cells.`, "#00FF00");
+        } else {
+          this.send(ws, "log", { message: "ERROR: refine <fuel|energy>", color: "#FF0000" });
+          return;
+        }
+        ship.cooldowns["Cargo Bay"] = 4;
+      } else if (mainCmd === "airlock") {
+        ship.cooldowns["Cargo Bay"] = 5;
+        if (ship.currentEncounter && ship.currentEncounter.hp <= 0 && ship.currentEncounter.type === "ship") {
+          const bonus = Math.floor(Math.random() * 20);
+          ship.scrap += bonus;
+          broadcast(`[CARGO] Airlock boarding successful. Recovered ${bonus} extra scrap from derelict.`, "#00FF00");
+        } else {
+          if (ship.scrap < 15) {
+            this.send(ws, "log", { message: "ERROR: REQUIRES 15 SCRAP TO JETTISON.", color: "#FF0000" });
+            return;
+          }
+          ship.scrap -= 15;
+          broadcast(`[CARGO] 15 Scrap jettisoned! Environmental hazards temporarily distracted.`, "#00FFFF");
+        }
+      } else if (mainCmd === "probe") {
+        if (ship.scrap < 20) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 20 SCRAP TO BUILD PROBE.", color: "#FF0000" });
+          return;
+        }
+        ship.scrap -= 20;
+        ship.cooldowns["Cargo Bay"] = 5;
+        broadcast(`[CARGO] PROBE LAUNCHED. Gathering deep sector telemetry...`, "#00FFFF");
+      } else if (mainCmd === "drone") {
+        if (ship.scrap < 10) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 10 SCRAP TO ASSEMBLE DRONE.", color: "#FF0000" });
+          return;
+        }
+        ship.scrap -= 10;
+        ship.droneActive = true;
+        ship.cooldowns["Cargo Bay"] = 5;
+        broadcast(`[CARGO] AUTOMATED SALVAGE DRONE DEPLOYED. Passive scrap collection active.`, "#00FF00");
+      } else if (mainCmd === "hide") {
+        ship.hideActive = true;
+        ship.cooldowns["Cargo Bay"] = 3;
+        broadcast(`[CARGO] VALUABLE CONTRABAND CONCEALED IN BULKHEADS.`, "#00FFFF");
+      }
+    } else if (mainCmd === "comm") {
+      if (args[1]?.toLowerCase() === "server") {
+        if (ship.energy < 5) {
+          this.send(ws, "log", { message: "ERROR: REQUIRES 5 ENERGY TO BROADCAST.", color: "#FF0000" });
+          return;
+        }
+        if (player.room !== ROOMS["bridge"]) {
+          this.send(ws, "log", { message: "ERROR: SERVER COMMS MUST BE SENT FROM THE BRIDGE.", color: "#FF0000" });
+          return;
+        }
+        const msg = args.slice(2).join(" ");
+        if (!msg) {
+          this.send(ws, "log", { message: "ERROR: Provide a message (e.g. 'comm server Hello Sector').", color: "#FF0000" });
+          return;
+        }
+        ship.energy -= 5;
+        const globalMessage = `[BROADCAST] ${ship.name} (${player.name}): ${msg}`;
+        Object.values(this.ships).forEach((s) => {
+          s.crew.forEach((memberId) => {
+            const ses = this.sessions.find((session2) => session2.playerId === memberId);
+            if (ses) this.send(ses.ws, "log", { message: globalMessage, color: "#FF00FF" });
+          });
+        });
       } else {
-        this.send(ws, "log", { message: "ERROR: NO ASTEROID.", color: "#FF0000" });
+        this.send(ws, "log", { message: "ERROR: Usage: 'comm server <message>'", color: "#FF0000" });
       }
     } else if (mainCmd === "who") {
       const totalPlayers = Object.values(this.players).length;
@@ -2056,30 +2516,18 @@ var GameServer = class {
       }
     } else if (mainCmd === "help") {
       this.send(ws, "log", { message: `--- COMMAND PROTOCOLS ---`, color: "#FFFF00" });
-      this.send(ws, "log", { message: `> 'move <room>', 'jump <sector>', 'scan', 'comm <msg>', 'mine', 'attack', 'repair'`, color: "#FFFFFF" });
-      this.send(ws, "log", { message: `> 'rename <name>', 'rename ship <name>', 'who', 'help'`, color: "#FFFFFF" });
+      this.send(ws, "log", { message: `> GLOBAL: move <room>, who, rename <name>, rename ship <name>, help`, color: "#FFFFFF" });
+      if (player.room === ROOMS["bridge"]) {
+        this.send(ws, "log", { message: `> BRIDGE: jump <sector>, scan [deep], hail, shields, evade, jam, comm server <msg>`, color: "#00FFFF" });
+      } else if (player.room === ROOMS["weapons"]) {
+        this.send(ws, "log", { message: `> WEAPONS: attack, target <sys>, emp, chaff, overcharge, flak`, color: "#FF00FF" });
+      } else if (player.room === ROOMS["cargo"]) {
+        this.send(ws, "log", { message: `> CARGO BAY: mine, refine <sys>, airlock, probe, drone, hide`, color: "#00FF00" });
+      } else if (player.room === ROOMS["engineering"]) {
+        this.send(ws, "log", { message: `> ENGINEERING: repair, reroute <room>, patch, overclock, siphon, vent`, color: "#FFA500" });
+      }
     } else {
       this.send(ws, "log", { message: `Action '${mainCmd}' not recognized.`, color: "#AAAAAA" });
-    }
-  }
-  generateEncounter(ship, broadcast) {
-    const roll = Math.random();
-    if (roll < 0.3) {
-      const ev = getRandomEvent();
-      ship.currentEncounter = { ...ev };
-      broadcast(`
---- SENSORS DETECT AN OBJECT ---`, "#FFFF00");
-      broadcast(`${ev.title.toUpperCase()} [${ev.type.toUpperCase()}]`, "#00FFFF");
-      broadcast(ev.text, "#FFFFFF");
-      broadcast("ACTIONS: " + ev.options.map((o) => `'${o.command}'`).join(", "), "#AAAAAA");
-    } else if (roll < 0.5) {
-      ship.currentEncounter = { type: "asteroid", hp: 30, name: "Asteroid" };
-      broadcast(`--- SENSORS DETECT AN ASTEROID ---`, "#FFFF00");
-    } else if (roll < 0.6) {
-      ship.currentEncounter = { type: "ship", hp: 50, name: "Scrap Pirate" };
-      broadcast(`--- PROXIMITY ALERT! ---`, "#FF0000");
-    } else {
-      ship.currentEncounter = null;
     }
   }
   startTick() {
@@ -2088,8 +2536,44 @@ var GameServer = class {
       let stateChanged = false;
       for (const shipId in this.ships) {
         const ship = this.ships[shipId];
+        if (ship.maxEnergy === void 0) ship.maxEnergy = 50;
+        if (ship.shieldsActive === void 0) ship.shieldsActive = false;
+        if (ship.evadeActive === void 0) ship.evadeActive = false;
+        if (ship.jammedCooldown === void 0) ship.jammedCooldown = 0;
+        if (ship.chaffActive === void 0) ship.chaffActive = false;
+        if (ship.overchargeActive === void 0) ship.overchargeActive = false;
+        if (ship.droneActive === void 0) ship.droneActive = false;
+        if (ship.hideActive === void 0) ship.hideActive = false;
+        if (ship.overclockActive === void 0) ship.overclockActive = false;
+        if (ship.fires === void 0) ship.fires = 0;
+        if (ship.enemyModifiers === void 0) ship.enemyModifiers = { weaponsDisabled: 0, enginesDisabled: 0, emped: 0 };
+        const broadcast = /* @__PURE__ */ __name((text, color = "#FFFFFF") => {
+          ship.crew.forEach((memberId) => {
+            const ses = this.sessions.find((s) => s.playerId === memberId);
+            if (ses) this.send(ses.ws, "log", { message: text, color });
+          });
+        }, "broadcast");
         if (ship.energy < ship.maxEnergy) {
-          ship.energy = Math.min(ship.maxEnergy, ship.energy + 0.2);
+          let regen = ship.overclockActive ? 0.6 : 0.2;
+          ship.energy = Math.min(ship.maxEnergy, ship.energy + regen);
+          stateChanged = true;
+        }
+        if (ship.droneActive && Math.random() < 0.1) {
+          ship.scrap += 1;
+          broadcast(`[DRONE] Recovered 1 unit of scrap.`, "#00FF00");
+          stateChanged = true;
+        }
+        if (ship.overclockActive && Math.random() < 0.05) {
+          ship.fires += 1;
+          broadcast(`WARNING: OVERCLOCKING HAS STARTED A SECONARY FIRE. (${ship.fires} total)`, "#FF0000");
+          stateChanged = true;
+        }
+        if (ship.fires > 0) {
+          let fireDmg = ship.fires * 2;
+          ship.hull -= fireDmg;
+          if (Math.random() < 0.3) {
+            broadcast(`[FIRE] Passive hull damage taken: ${fireDmg}`, "#FF0000");
+          }
           stateChanged = true;
         }
         for (const room in ship.cooldowns) {
@@ -2098,21 +2582,127 @@ var GameServer = class {
             stateChanged = true;
           }
         }
+        if (ship.enemyModifiers.weaponsDisabled > 0) ship.enemyModifiers.weaponsDisabled--;
+        if (ship.enemyModifiers.enginesDisabled > 0) ship.enemyModifiers.enginesDisabled--;
+        if (ship.enemyModifiers.emped > 0) {
+          ship.enemyModifiers.emped--;
+          if (ship.enemyModifiers.emped === 0) broadcast(`[!] Enemy ship is rebooting...`, "#00FFFF");
+        }
+        if (ship.jammedCooldown > 0) ship.jammedCooldown--;
         if (ship.currentEncounter && ship.currentEncounter.type === "ship") {
-          if (Math.random() < 0.1) {
-            const dmg = Math.floor(Math.random() * 10) + 5;
-            ship.hull -= dmg;
-            ship.crew.forEach((mid) => {
-              const ses = this.sessions.find((s) => s.playerId === mid);
-              if (ses) this.send(ses.ws, "log", { message: `[!] ${ship.currentEncounter.name.toUpperCase()} FIRED! Took ${dmg} DMG!`, color: "#FF0000" });
-            });
-            stateChanged = true;
+          if (ship.enemyModifiers.emped === 0 && ship.jammedCooldown === 0) {
+            if (Math.random() < 0.1) {
+              if (ship.evadeActive && Math.random() < 0.7) {
+                broadcast(`[BRIDGE] EVASIVE MANEUVERS SUCCESSFUL! Incoming fire missed!`, "#00FF00");
+                ship.evadeActive = false;
+              } else if (ship.chaffActive) {
+                broadcast(`[WEAPONS] CHAFF DEPLOYED! Incoming missiles deflected!`, "#00FF00");
+                ship.chaffActive = false;
+              } else {
+                let dmg = Math.floor(Math.random() * 10) + 5;
+                if (ship.enemyModifiers.weaponsDisabled > 0) dmg = Math.floor(dmg / 2);
+                if (ship.shieldsActive) {
+                  dmg = Math.max(0, dmg - 5);
+                  broadcast(`[SHIELDS] Absorbed 5 damage.`, "#00FFFF");
+                  ship.shieldsActive = false;
+                }
+                ship.hull -= dmg;
+                broadcast(`[!] ${ship.currentEncounter.name.toUpperCase()} FIRED! Took ${dmg} DMG!`, "#FF0000");
+                ship.evadeActive = false;
+              }
+              stateChanged = true;
+            }
+          } else if (ship.jammedCooldown > 0 && Math.random() < 0.1) {
+            broadcast(`[!] Enemy attempted to fire but targeting systems are JAMMED.`, "#00FFFF");
           }
         }
         ship.crew.forEach((mid) => {
           const ses = this.sessions.find((s) => s.playerId === mid);
           if (ses) this.send(ses.ws, "ship_sync", { hull: ship.hull, fuel: ship.fuel, energy: Math.floor(ship.energy), scrap: ship.scrap, cooldowns: ship.cooldowns });
         });
+      }
+      if (!this.npcTickCounter) this.npcTickCounter = 0;
+      this.npcTickCounter++;
+      if (this.npcTickCounter >= 5) {
+        this.npcTickCounter = 0;
+        for (const npcId in this.npcs) {
+          const npc = this.npcs[npcId];
+          if (npc.hp <= 0) continue;
+          let playersInSector = Object.values(this.ships).filter((s) => s.sector === npc.sector);
+          if (npc.cooldown > 0) npc.cooldown--;
+          if (playersInSector.length > 0) {
+            if (npc.behavior === "aggressive" && npc.cooldown === 0) {
+              const targetShip = playersInSector[Math.floor(Math.random() * playersInSector.length)];
+              if (!targetShip.currentEncounter || targetShip.currentEncounter.id !== npc.id) {
+                targetShip.currentEncounter = {
+                  id: npc.id,
+                  type: "ship",
+                  name: npc.name,
+                  hp: npc.hp,
+                  maxHp: npc.maxHp,
+                  isGlobalNPC: true
+                };
+                const broadcast = /* @__PURE__ */ __name((text, color = "#FFFFFF") => {
+                  targetShip.crew.forEach((memberId) => {
+                    const ses = this.sessions.find((s) => s.playerId === memberId);
+                    if (ses) this.send(ses.ws, "log", { message: text, color });
+                  });
+                }, "broadcast");
+                broadcast(`
+--- WARNING: PROXIMITY ALERT! ---`, "#FF0000");
+                broadcast(`[!] ${npc.name.toUpperCase()} HAS ENGAGED YOU!`, "#FF0000");
+                npc.cooldown = 1;
+                stateChanged = true;
+              }
+            } else if (npc.behavior === "flee" && npc.cooldown === 0) {
+              const links = this.galaxy[npc.sector].links;
+              npc.sector = links[Math.floor(Math.random() * links.length)];
+              npc.cooldown = 2;
+              stateChanged = true;
+              playersInSector.forEach((ship) => {
+                const broadcast = /* @__PURE__ */ __name((text, color = "#FFFFFF") => {
+                  ship.crew.forEach((memberId) => {
+                    const ses = this.sessions.find((s) => s.playerId === memberId);
+                    if (ses) this.send(ses.ws, "log", { message: text, color });
+                  });
+                }, "broadcast");
+                broadcast(`[SENSORS] ${npc.name} has fled the sector.`, "#AAAAAA");
+                if (ship.currentEncounter && ship.currentEncounter.id === npc.id) {
+                  ship.currentEncounter = null;
+                }
+              });
+            }
+          } else {
+            if (Math.random() < 0.2 && npc.cooldown === 0) {
+              const links = this.galaxy[npc.sector].links;
+              npc.sector = links[Math.floor(Math.random() * links.length)];
+              npc.cooldown = 2;
+              stateChanged = true;
+            }
+          }
+        }
+      }
+      if (!this.respawnTickCounter) this.respawnTickCounter = 0;
+      this.respawnTickCounter++;
+      if (this.respawnTickCounter >= 30) {
+        this.respawnTickCounter = 0;
+        const emptySectors = Object.values(this.galaxy).filter((s) => !s.encounterType);
+        if (emptySectors.length > 0) {
+          const targetSector = emptySectors[Math.floor(Math.random() * emptySectors.length)];
+          const encounterRoll = Math.random();
+          if (encounterRoll < 0.25) {
+            const evTemplate = GAME_EVENTS[Math.floor(Math.random() * GAME_EVENTS.length)];
+            targetSector.encounterType = evTemplate.type;
+            targetSector.encounterData = { id: evTemplate.id };
+          } else if (encounterRoll < 0.4) {
+            targetSector.encounterType = "asteroid";
+            targetSector.encounterData = { hp: 30, name: "Asteroid" };
+          } else if (encounterRoll < 0.45) {
+            targetSector.encounterType = "ship";
+            targetSector.encounterData = { hp: 50, name: "Scrap Pirate" };
+          }
+          if (targetSector.encounterType) stateChanged = true;
+        }
       }
       if (stateChanged) await this.saveState();
     }, 1e3);
@@ -2171,7 +2761,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-mr8hhj/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-ZYjvud/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -2203,7 +2793,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-mr8hhj/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-ZYjvud/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
