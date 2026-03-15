@@ -1,4 +1,5 @@
 import { GAME_EVENTS, getRandomEvent, SECTOR_FLAVOR, ROOM_DESCRIPTIONS } from './public/events.js';
+import { UPGRADES } from './public/upgrades.js';
 
 // --- GAME CONSTANTS ---
 const NUM_SECTORS = 200;
@@ -7,16 +8,6 @@ const ROOMS = {
     'weapons': 'Weapons Cntrl',
     'cargo': 'Cargo Bay',
     'engineering': 'Engineering'
-};
-
-const COLORS = {
-    GREEN: '#00FF00',
-    RED: '#FF0000',
-    YELLOW: '#FFFF00',
-    CYAN: '#00FFFF',
-    GRAY: '#AAAAAA',
-    WHITE: '#FFFFFF',
-    MAGENTA: '#FF00FF'
 };
 
 export class GameServer {
@@ -29,6 +20,7 @@ export class GameServer {
         this.players = {};
         this.galaxy = {};
         this.npcs = {}; // ID -> NPC Object
+        this.stations = {}; // Sector -> Station Object
         this.shipCounter = 1;
         this.npcCounter = 1;
         this.pendingRequests = {};
@@ -38,11 +30,12 @@ export class GameServer {
         
         // Load state from storage
         this.state.blockConcurrencyWhile(async () => {
-            let stored = await this.state.storage.get(["ships", "players", "galaxy", "npcs", "shipCounter", "npcCounter", "pendingRequests"]);
+            let stored = await this.state.storage.get(["ships", "players", "galaxy", "npcs", "stations", "shipCounter", "npcCounter", "pendingRequests"]);
             this.ships = stored.get("ships") || {};
             this.players = stored.get("players") || {};
             this.galaxy = stored.get("galaxy") || {};
             this.npcs = stored.get("npcs") || {};
+            this.stations = stored.get("stations") || {};
             this.shipCounter = stored.get("shipCounter") || 1;
             this.npcCounter = stored.get("npcCounter") || 1;
             this.pendingRequests = stored.get("pendingRequests") || {};
@@ -50,6 +43,7 @@ export class GameServer {
             if (Object.keys(this.galaxy).length === 0) {
                 this.generateGalaxy();
                 await this.state.storage.put("galaxy", this.galaxy);
+                await this.state.storage.put("stations", this.stations);
             }
             if (Object.keys(this.npcs).length === 0) {
                 this.setupNPCs();
@@ -65,6 +59,25 @@ export class GameServer {
         for (let i = 1; i <= NUM_SECTORS; i++) {
             this.galaxy[i] = { id: i, links: [], encounterType: null, encounterData: null };
         }
+        
+        // --- PHASE 19: Generate Stations ---
+        const upgradeIds = Object.keys(UPGRADES);
+        for (let i = 0; i < 20; i++) { // 20 Stations across 200 sectors
+            const sector = Math.floor(Math.random() * NUM_SECTORS) + 1;
+            if (!this.stations[sector]) {
+                const stock = [];
+                const tempIds = [...upgradeIds];
+                for (let j = 0; j < 10; j++) {
+                    const idx = Math.floor(Math.random() * tempIds.length);
+                    stock.push(tempIds.splice(idx, 1)[0]);
+                }
+                this.stations[sector] = {
+                    name: `Station ${String.fromCharCode(65 + i)}-${Math.floor(Math.random() * 900) + 100}`,
+                    stock: stock
+                };
+            }
+        }
+
         for (let i = 1; i <= NUM_SECTORS; i++) {
             const numLinks = Math.floor(Math.random() * 3) + 2;
             while (this.galaxy[i].links.length < numLinks) {
@@ -290,13 +303,26 @@ export class GameServer {
         await this.saveState();
     }
 
-    async handleCommand(session, cmd) {
+    async handleCommand(session, cmdString) {
         const player = this.players[session.playerId];
+        const ws = session.ws;
         if (!player) return;
 
-        const args = cmd.trim().split(' ');
-        const mainCmd = args[0].toLowerCase();
-        const ws = session.ws;
+        const args = cmdString.trim().split(/\s+/);
+        let mainCmd = args[0].toLowerCase();
+        
+        // --- COMMAND ALIASING ---
+        const ALIAS_MAP = {
+            'l': 'look', 'm': 'move', 'h': 'help', '?': 'help', 'w': 'who', 'rn': 'rename',
+            'j': 'jump', 's': 'scan', 'sc': 'scan', 'hl': 'hail', 'sh': 'shields', 'ev': 'evade', 'jm': 'jam',
+            'a': 'attack', 't': 'target', 'e': 'emp', 'cf': 'chaff', 'oc': 'overcharge', 'fk': 'flak',
+            'r': 'repair', 'p': 'patch', 'rr': 'reroute', 'ov': 'overclock', 'sn': 'siphon', 'v': 'vent',
+            'mn': 'mine', 'rf': 'refine', 'al': 'airlock', 'pb': 'probe', 'dr': 'drone', 'hd': 'hide',
+            'dk': 'dock', 'b': 'buy', 'i': 'inventory', 'inv': 'inventory'
+        };
+        if (ALIAS_MAP[mainCmd]) mainCmd = ALIAS_MAP[mainCmd];
+
+        const ship = player.shipId ? this.ships[player.shipId] : null;
 
         if (player.state === 'LOBBY') {
             await this.handleLobbyCommand(session, player, mainCmd, args);
@@ -324,7 +350,9 @@ export class GameServer {
                 energy: 50,
                 maxEnergy: 50,
                 hull: 100,
-                scrap: 15,
+                scrap: 25, // Increased from 15
+                credits: 250, // Increased from 200
+                upgrades: [],
                 currentEncounter: null,
                 cooldowns: { 'Bridge': 0, 'Weapons Cntrl': 0, 'Cargo Bay': 0, 'Engineering': 0 },
                 crew: [player.id],
@@ -615,13 +643,13 @@ export class GameServer {
                 this.send(ws, 'log', { message: "ERROR: SHIELDS ACCESSED FROM BRIDGE ONLY.", color: '#FF0000' });
                 return;
             }
-            if (ship.energy < 5) {
-                this.send(ws, 'log', { message: "ERROR: INSUFFICIENT ENERGY.", color: '#FF0000' });
+            if (ship.energy < 15) { // Increased from 5
+                this.send(ws, 'log', { message: "ERROR: INSUFFICIENT ENERGY. (15 REQ)", color: '#FF0000' });
                 return;
             }
-            ship.energy -= 5;
+            ship.energy -= 15;
             ship.shieldsActive = true;
-            broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-5 Energy)`, '#00FFFF');
+            broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-15 Energy, Absorbs 8 DMG)`, '#00FFFF');
         } else if (mainCmd === 'evade') {
             if (player.room !== ROOMS['bridge']) {
                 this.send(ws, 'log', { message: "ERROR: HELM ACCESSED FROM BRIDGE ONLY.", color: '#FF0000' });
@@ -748,6 +776,13 @@ export class GameServer {
                 ship.energy -= 5;
                 ship.cooldowns['Weapons Cntrl'] = 3;
                 let dmg = Math.floor(Math.random() * 20) + 10;
+                
+                // Critical Hit (5% chance)
+                if (Math.random() < 0.05) {
+                    dmg = Math.floor(dmg * 1.5);
+                    this.send(ws, 'log', { message: `[!!!] CRITICAL HIT! Main battery struck a vulnerable sector!`, color: '#00FF00' });
+                }
+
                 if (ship.overchargeActive) {
                     dmg *= 2;
                     ship.overchargeActive = false;
@@ -849,14 +884,14 @@ export class GameServer {
             }
             
             if (mainCmd === 'repair') {
-                if (ship.scrap < 5 || ship.hull >= 100) {
-                    this.send(ws, 'log', { message: "ERROR: Requires 5 Scrap or Hull is already full.", color: '#FF0000' });
+                if (ship.scrap < 10 || ship.hull >= 100) { // Increased cost to 10
+                    this.send(ws, 'log', { message: "ERROR: Requires 10 Scrap or Hull is already full.", color: '#FF0000' });
                     return;
                 }
-                ship.scrap -= 5;
+                ship.scrap -= 10;
                 ship.hull = Math.min(100, ship.hull + 10);
                 ship.cooldowns['Engineering'] = 5;
-                broadcast(`[ENGINEERING] Heavy hull repair complete. (+10 Hull)`, '#00FF00');
+                broadcast(`[ENGINEERING] Heavy hull repair complete. (+10 Hull, -10 Scrap)`, '#00FF00');
             } else if (mainCmd === 'reroute') {
                 const targetRoomStr = args[1]?.toLowerCase();
                 let targetRoomMap = { 'bridge': 'Bridge', 'weapons': 'Weapons Cntrl', 'cargo': 'Cargo Bay' };
@@ -1025,17 +1060,137 @@ export class GameServer {
                 player.name = newName;
                 broadcast(`[SYS] ${oldName} is now known as ${newName}.`, '#00FF00');
             }
+        } else if (mainCmd === 'scan') {
+            const sectorData = this.galaxy[ship.sector];
+            const station = this.stations[ship.sector];
+            this.send(ws, 'log', { message: `--- LONG RANGE SENSOR LOG ---`, color: '#00FFFF' });
+            this.send(ws, 'log', { message: `SECTOR: ${sectorData.id}`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `HYPERLANES: ${sectorData.links.join(', ')}`, color: '#FFFFFF' });
+            if (station) {
+                this.send(ws, 'log', { message: `[!!!] STATION DETECTED: ${station.name}`, color: '#00FF00' });
+            }
+            this.send(ws, 'log', { message: `SIGNATURES: ${sectorData.encounterType ? sectorData.encounterType.toUpperCase() : 'CLEAR'}`, color: '#FFFFFF' });
+            
+            this.send(ws, 'update_sector', { ...sectorData, station: station });
         } else if (mainCmd === 'help') {
             this.send(ws, 'log', { message: `--- COMMAND PROTOCOLS ---`, color: '#FFFF00' });
-            this.send(ws, 'log', { message: `> GLOBAL: move <room>, who, rename <name>, rename ship <name>, help`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> GLOBAL: move [m], who [w], rename ship [rn], look [l], help [h/?]`, color: '#FFFFFF' });
             if (player.room === ROOMS['bridge']) {
-                this.send(ws, 'log', { message: `> BRIDGE: jump <sector>, scan [deep], hail, shields, evade, jam, comm server <msg>`, color: '#00FFFF' });
+                this.send(ws, 'log', { message: `> BRIDGE: jump [j], scan [s], hail [hl], shields [sh], evade [ev], jam [jm], comm server`, color: '#00FFFF' });
             } else if (player.room === ROOMS['weapons']) {
-                this.send(ws, 'log', { message: `> WEAPONS: attack, target <sys>, emp, chaff, overcharge, flak`, color: '#FF00FF' });
+                this.send(ws, 'log', { message: `> WEAPONS: attack [a], target [t], emp [e], chaff [cf], overcharge [oc], flak [fk]`, color: '#FF00FF' });
             } else if (player.room === ROOMS['cargo']) {
-                this.send(ws, 'log', { message: `> CARGO BAY: mine, refine <sys>, airlock, probe, drone, hide`, color: '#00FF00' });
+                this.send(ws, 'log', { message: `> CARGO BAY: mine [mn], refine [rf], airlock [al], probe [pb], drone [dr], hide [hd]`, color: '#00FF00' });
             } else if (player.room === ROOMS['engineering']) {
-                this.send(ws, 'log', { message: `> ENGINEERING: repair, reroute <room>, patch, overclock, siphon, vent`, color: '#FFA500' });
+                this.send(ws, 'log', { message: `> ENGINEERING: repair [r], reroute [rr], patch [p], overclock [ov], siphon [sn], vent [v]`, color: '#FFA500' });
+            }
+            this.send(ws, 'log', { message: `> SHIP: scan [s], hail [hl], dock [dk], buy [b], inventory [i/inv]`, color: '#FFFFFF' });
+        } else if (mainCmd === 'dock') {
+            const station = this.stations[ship.sector];
+            if (!station) {
+                this.send(ws, 'log', { message: "ERROR: NO SPACE STATION IN THIS SECTOR.", color: '#FF0000' });
+                return;
+            }
+            this.send(ws, 'log', { message: `--- DOCKED AT ${station.name.toUpperCase()} ---`, color: '#00FF00' });
+            this.send(ws, 'log', { message: `CREDITS: ${ship.credits} | SCRAP: ${ship.scrap}`, color: '#FFFF00' });
+            this.send(ws, 'log', { message: `AVAILABLE MODULES:`, color: '#00FFFF' });
+            station.stock.forEach(id => {
+                const u = UPGRADES[id];
+                this.send(ws, 'log', { message: `[${id}] ${u.name} - ${u.price}c: ${u.desc}`, color: '#FFFFFF' });
+            });
+            this.send(ws, 'log', { message: `Type 'buy <id>' to purchase.`, color: '#AAAAAA' });
+        } else if (mainCmd === 'look') {
+            const target = args.length > 1 ? args.slice(1).join(' ').toLowerCase() : null;
+            
+            if (!target) {
+                // Default: Look at current room
+                let desc = ROOM_DESCRIPTIONS[player.room] || "A functional part of the ship.";
+                if (player.room === ROOMS['bridge']) {
+                    const sectorDesc = SECTOR_FLAVOR[ship.sector % SECTOR_FLAVOR.length];
+                    desc += `\n\nTHROUGH THE VIEWPORT: ${sectorDesc}`;
+                }
+                this.send(ws, 'log', { message: `--- ${player.room.toUpperCase()} ---`, color: '#FFFF00' });
+                this.send(ws, 'log', { message: desc, color: '#FFFFFF' });
+            } else if (target === 'ship') {
+                this.send(ws, 'log', { message: `--- THE ${ship.name} ---`, color: '#00FFFF' });
+                this.send(ws, 'log', { message: "A rugged, blocky Spiral Nebula tugboat. Her hull is scarred by micro-meteors and old docking accidents, but she's reliable and has a certain industrial charm.", color: '#FFFFFF' });
+            } else if (target === 'sector') {
+                const sectorDesc = SECTOR_FLAVOR[ship.sector % SECTOR_FLAVOR.length];
+                this.send(ws, 'log', { message: `--- SECTOR ${ship.sector} ---`, color: '#FFFF00' });
+                this.send(ws, 'log', { message: sectorDesc, color: '#FFFFFF' });
+            } else {
+                // Check if it's an upgrade
+                let foundUpgrade = null;
+                for (const upgradeId of ship.upgrades) {
+                    const u = UPGRADES[upgradeId];
+                    if (u.name.toLowerCase().includes(target) || upgradeId.toLowerCase() === target) {
+                        foundUpgrade = u;
+                        break;
+                    }
+                }
+
+                if (foundUpgrade) {
+                    this.send(ws, 'log', { message: `--- ${foundUpgrade.name.toUpperCase()} ---`, color: '#00FF00' });
+                    this.send(ws, 'log', { message: foundUpgrade.desc, color: '#FFFFFF' });
+                } else {
+                    // Check for current encounter or local NPCs
+                    let enc = ship.currentEncounter;
+                    let localNpcs = Object.values(this.npcs).filter(n => n.sector === ship.sector && n.hp > 0);
+                    let targetNpc = null;
+
+                    if (enc && (enc.name.toLowerCase().includes(target) || target === 'target' || target === 'enemy' || (enc.id && enc.id.toLowerCase() === target))) {
+                        targetNpc = enc;
+                    } else {
+                        targetNpc = localNpcs.find(n => n.name.toLowerCase().includes(target) || n.id.toLowerCase() === target);
+                    }
+
+                    if (targetNpc) {
+                        this.send(ws, 'log', { message: `--- ${targetNpc.name.toUpperCase()} ---`, color: '#FF0000' });
+                        let encDesc = "A formidable signature on your scanners.";
+                        if (targetNpc.type === 'ship') encDesc = "A vessel of unknown intent, its systems humming with potential energy.";
+                        if (targetNpc.type === 'asteroid') encDesc = "A massive chunk of ore and stone, drifting silently through the void.";
+                        if (targetNpc.type === 'merchant') encDesc = "A heavily laden trading vessel, its hull covered in the decals of various merchant guilds.";
+                        if (targetNpc.type === 'leviathan') encDesc = "An ancient, organic mass of scales and bioluminescent tendrils. It ignores you with a cold, primordial indifference.";
+                        this.send(ws, 'log', { message: encDesc, color: '#FFFFFF' });
+                    } else {
+                        this.send(ws, 'log', { message: `ERROR: Cannot see '${target}' here.`, color: '#FF0000' });
+                    }
+                }
+            }
+        } else if (mainCmd === 'buy') {
+            const station = this.stations[ship.sector];
+            const upgradeId = args[1]?.toUpperCase();
+            if (!station || !station.stock.includes(upgradeId)) {
+                this.send(ws, 'log', { message: "ERROR: MODULE NOT AVAILABLE AT THIS STATION.", color: '#FF0000' });
+                return;
+            }
+            const upgrade = UPGRADES[upgradeId];
+            if (ship.upgrades.includes(upgradeId)) {
+                this.send(ws, 'log', { message: `ERROR: ${upgrade.name} ALREADY INSTALLED.`, color: '#FF0000' });
+                return;
+            }
+            if (ship.credits < upgrade.price) {
+                this.send(ws, 'log', { message: `ERROR: INSUFFICIENT CREDITS. REQUIRED: ${upgrade.price}`, color: '#FF0000' });
+                return;
+            }
+            ship.credits -= upgrade.price;
+            ship.upgrades.push(upgradeId);
+            broadcast(`[SYS] ${player.name} purchased and installed ${upgrade.name.toUpperCase()}.`, '#00FF00');
+            
+            // Apply immediate stat changes if any (e.g. Max Hull)
+            if (upgradeId === 'D101') ship.hull = Math.min(120, ship.hull + 20); // Titanium Frame example
+            if (upgradeId === 'D125') ship.hull = 200; // The Unbreakable
+            
+            await this.saveState();
+        } else if (mainCmd === 'inventory') {
+            if (ship.upgrades.length === 0) {
+                this.send(ws, 'log', { message: "NO UPGRADES INSTALLED.", color: '#AAAAAA' });
+            } else {
+                this.send(ws, 'log', { message: `--- SHIP SYSTEMS INVENTORY ---`, color: '#FFFF00' });
+                ship.upgrades.forEach(id => {
+                    const u = UPGRADES[id];
+                    this.send(ws, 'log', { message: `[${id}] ${u.name}: ${u.desc}`, color: '#FFFFFF' });
+                });
             }
         }
  else {
@@ -1074,7 +1229,7 @@ export class GameServer {
                 
                 // Regenerate energy
                 if (ship.energy < ship.maxEnergy) {
-                    let regen = ship.overclockActive ? 0.6 : 0.2;
+                    let regen = ship.overclockActive ? 1.0 : 0.5; // Buffed from 0.2/0.6
                     ship.energy = Math.min(ship.maxEnergy, ship.energy + regen);
                     stateChanged = true;
                 }
@@ -1123,19 +1278,29 @@ export class GameServer {
                 if (ship.currentEncounter && ship.currentEncounter.type === 'ship') {
                     // Only attack if not EMPed or Jammed
                     if (ship.enemyModifiers.emped === 0 && ship.jammedCooldown === 0) {
-                        if (Math.random() < 0.1) {
-                            if (ship.evadeActive && Math.random() < 0.7) {
+                        if (Math.random() < 0.15) { // Increased frequency slightly
+                            if (ship.evadeActive && Math.random() < 0.85) { // Buffed from 70%
                                 broadcast(`[BRIDGE] EVASIVE MANEUVERS SUCCESSFUL! Incoming fire missed!`, '#00FF00');
                                 ship.evadeActive = false; // consume evade
                             } else if (ship.chaffActive) {
                                 broadcast(`[WEAPONS] CHAFF DEPLOYED! Incoming missiles deflected!`, '#00FF00');
                                 ship.chaffActive = false; // consume chaff
                             } else {
-                                let dmg = Math.floor(Math.random() * 10) + 5;
+                                // Scale damage by sector depth (Sector 1 = 1x, Sector 200 = 2x)
+                                const sectorModifier = 1 + (ship.sector / NUM_SECTORS);
+                                let baseDmg = Math.floor(Math.random() * 10) + 5;
+                                let dmg = Math.floor(baseDmg * sectorModifier);
+                                
+                                // Critical Hit (5% chance)
+                                if (Math.random() < 0.05) {
+                                    dmg = Math.floor(dmg * 1.5);
+                                    broadcast(`[!!!] CRITICAL HIT DETECTED! TARGET STRUCK VULNERABLE SYSTEM rooms!`, '#FF0000');
+                                }
+
                                 if (ship.enemyModifiers.weaponsDisabled > 0) dmg = Math.floor(dmg / 2); // Reduced damage
                                 if (ship.shieldsActive) {
-                                    dmg = Math.max(0, dmg - 5);
-                                    broadcast(`[SHIELDS] Absorbed 5 damage.`, '#00FFFF');
+                                    dmg = Math.max(0, dmg - 8); // Buffed from 5
+                                    broadcast(`[SHIELDS] Absorbed 8 damage.`, '#00FFFF');
                                     ship.shieldsActive = false; // consume shield
                                 }
                                 ship.hull -= dmg;
@@ -1157,10 +1322,38 @@ export class GameServer {
                     continue; // Skip further processing for this destroyed ship
                 }
 
+                // --- PHASE 20: Upgrade Hooks (Tick) ---
+                if (ship.upgrades.includes('D102')) { // Auto-Welder
+                    if (ship.hull < 100 && Math.random() < 0.1) {
+                        ship.hull++;
+                        stateChanged = true;
+                    }
+                }
+                if (ship.upgrades.includes('U162')) { // Auto-Turret
+                    if (ship.currentEncounter && ship.currentEncounter.type === 'ship') {
+                        ship.currentEncounter.hp -= 2;
+                        if (ship.currentEncounter.hp <= 0) {
+                            broadcast(`[WEAPONS] AUTO-TURRET CRYSTALLIZED TARGET.`, '#00FF00');
+                        }
+                        stateChanged = true;
+                    }
+                }
+                if (ship.upgrades.includes('A177')) { // Super-Conductors
+                    ship.energy = Math.min(ship.maxEnergy, ship.energy + 0.2);
+                    stateChanged = true;
+                }
+
                 // Sync Ship
                 ship.crew.forEach(mid => {
                     const ses = this.sessions.find(s => s.playerId === mid);
-                    if (ses) this.send(ses.ws, 'ship_sync', { hull: ship.hull, fuel: ship.fuel, energy: Math.floor(ship.energy), scrap: ship.scrap, cooldowns: ship.cooldowns });
+                    if (ses) this.send(ses.ws, 'ship_sync', { 
+                        hull: ship.hull, 
+                        fuel: ship.fuel, 
+                        energy: Math.floor(ship.energy), 
+                        scrap: ship.scrap, 
+                        credits: ship.credits,
+                        cooldowns: ship.cooldowns 
+                    });
                 });
             }
 

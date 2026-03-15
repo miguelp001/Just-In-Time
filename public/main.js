@@ -124,14 +124,6 @@ class MainScene extends Phaser.Scene {
             } else if (event.keyCode === 32 || (event.keyCode >= 48 && event.keyCode <= 90) || event.keyCode === 189 || event.keyCode === 173 || event.keyCode === 190) {
                 // Alphanumeric + Space + Hyphen + Dot
                 this.currentInput += event.key.toLowerCase();
-            } else if (event.keyCode === 13) {
-                // Enter
-                if (this.currentInput.trim().length > 0) {
-                    if (!this.gameState.isGameOver) {
-                        this.processCommand(this.currentInput);
-                    }
-                    this.currentInput = "";
-                }
             }
             if (!this.gameState.isGameOver) {
                  this.updatePrompt();
@@ -184,6 +176,8 @@ class MainScene extends Phaser.Scene {
                     this.handleUpdateUI(data);
                 } else if (type === 'ship_sync') {
                     this.handleShipSync(data);
+                } else if (type === 'update_sector') {
+                    this.handleUpdateSector(data);
                 }
             } catch (err) {
                 console.error("Protocol Error:", err);
@@ -228,9 +222,25 @@ class MainScene extends Phaser.Scene {
             this.gameState.fuel = data.fuel;
             this.gameState.energy = data.energy;
             this.gameState.scrap = data.scrap;
+            this.gameState.credits = data.credits;
             this.gameState.cooldowns = data.cooldowns;
             this.updateHeader();
         }
+    }
+
+    handleUpdateSector(data) {
+        this.currentSectorInfo = data;
+        let text = `SECTOR: ${data.id}\n`;
+        text += `LINKS: ${data.links.join(', ')}\n`;
+        if (data.station) {
+            text += `[!!!] STATION: ${data.station.name.toUpperCase()}\n`;
+        }
+        if (data.encounterType) {
+            text += `STATUS: ${data.encounterType.toUpperCase()}\n`;
+        } else {
+            text += `STATUS: CLEAR\n`;
+        }
+        this.updateSensors(text, data.station ? COLORS.GREEN : COLORS.YELLOW);
     }
 
     updateHeader() {
@@ -248,7 +258,7 @@ class MainScene extends Phaser.Scene {
 
         if (this.isMobile) {
             this.headerText.setText(
-                `${SYMBOLS.HULL}${g.hull.current || 0} ${SYMBOLS.FUEL}${g.fuel.current || 0} ${SYMBOLS.ENERGY}${g.energy.current || 0} ${SYMBOLS.SCRAP}${g.scrap || 0}\n` +
+                `${SYMBOLS.HULL}${g.hull.current || 0} ${SYMBOLS.FUEL}${g.fuel.current || 0} ${SYMBOLS.ENERGY}${g.energy.current || 0} ${SYMBOLS.SCRAP}${g.scrap || 0} $${g.credits || 0}\n` +
                 `[SEC: ${g.sector || 'UNC'}]${cooldownsStr}`
             );
         } else {
@@ -257,6 +267,7 @@ class MainScene extends Phaser.Scene {
                 `${SYMBOLS.FUEL} Fuel: ${g.fuel.current || 0}/100 | ` +
                 `${SYMBOLS.ENERGY} Energy: ${g.energy.current || 0}/50 | ` +
                 `${SYMBOLS.SCRAP} Scrap: ${g.scrap || 0} | ` +
+                `Credits: $${g.credits || 0} | ` +
                 `[ SECTOR: ${g.sector || 'UNKNOWN'} ]${cooldownsStr}`
             );
         }

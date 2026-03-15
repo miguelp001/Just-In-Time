@@ -1584,6 +1584,222 @@ var GAME_EVENTS = [
   }
 ];
 
+// public/upgrades.js
+var UPGRADES = {
+  // 1. BALLISTICS
+  "B01": { name: "Scrap-Slug Thrower", price: 80, tier: 1, type: "ballistic", desc: "Basic kinetic weapon using raw junk." },
+  "B02": { name: "Dual Rail-Array", price: 150, tier: 2, type: "ballistic", desc: "Higher fire rate, low accuracy." },
+  "B03": { name: "Punt-Gun", price: 200, tier: 2, type: "ballistic", desc: "Massive knockback effect." },
+  "B04": { name: "Shrapnel Burst", price: 120, tier: 1, type: "ballistic", desc: "High damage against unshielded hulls." },
+  "B05": { name: "Hyper-Velocity Driver", price: 250, tier: 3, type: "ballistic", desc: "Bonus damage based on evasion." },
+  "B06": { name: "Tungsten Penetrator", price: 300, tier: 3, type: "ballistic", desc: "Ignores 10% of enemy armor." },
+  "B07": { name: "Flak Saturation", price: 180, tier: 2, type: "ballistic", desc: "Deals minor damage to all targets." },
+  "B08": { name: "Magnetic Accelerator", price: 400, tier: 4, type: "ballistic", desc: "Damage increases every time it hits." },
+  "B09": { name: "Rotary Autocannon", price: 350, tier: 3, type: "ballistic", desc: "Fires 3 times per attack command." },
+  "B10": { name: "Graviton Slug", price: 220, tier: 2, type: "ballistic", desc: "Reduces enemy evade chance on hit." },
+  "B11": { name: "Shatter-Shot", price: 100, tier: 1, type: "ballistic", desc: "Mining bonus: +50% asteroid damage." },
+  "B12": { name: "Heavy Siege Cannon", price: 600, tier: 4, type: "ballistic", desc: "Triple damage against stations/bosses." },
+  "B13": { name: "Chain-Gun", price: 280, tier: 3, type: "ballistic", desc: "Hits reduce energy cost of next attack." },
+  "B14": { name: "Buckshot Spreader", price: 140, tier: 2, type: "ballistic", desc: "High damage at close range." },
+  "B15": { name: "Sabot Round", price: 320, tier: 3, type: "ballistic", desc: "High crit chance against systems." },
+  "B16": { name: "Scatter-Flak", price: 190, tier: 2, type: "ballistic", desc: "High chance to destroy missiles." },
+  "B17": { name: "Dense-Core Slab", price: 450, tier: 4, type: "ballistic", desc: "Massive damage, costs hull health." },
+  "B18": { name: "Gatling-Ripper", price: 380, tier: 3, type: "ballistic", desc: "Shreds hull over time." },
+  "B19": { name: "Mass-Driver Mk II", price: 110, tier: 1, type: "ballistic", desc: "Standard upgrade, low scrap cost." },
+  "B20": { name: "Recoil-Compensator", price: 240, tier: 2, type: "ballistic", desc: "Increases accuracy of all ballistics." },
+  "B21": { name: "Auto-Loader", price: 300, tier: 3, type: "ballistic", desc: "Reduces ballistic cooldown by 1s." },
+  "B22": { name: "Mag-Feed Extender", price: 260, tier: 3, type: "ballistic", desc: "Every 5th shot costs 0 scrap." },
+  "B23": { name: "Blast-Shield Piercer", price: 350, tier: 3, type: "ballistic", desc: "3x damage to shields." },
+  "B24": { name: "Impact Induction", price: 420, tier: 4, type: "ballistic", desc: "10% chance to gain 2 Energy on hit." },
+  "B25": { name: "The Goliath", price: 800, tier: 4, type: "ballistic", desc: "Single-use massive asteroid-cracker." },
+  // 2. ENERGETICS
+  "E26": { name: "Thermal Beam", price: 100, tier: 1, type: "energy", desc: "Standard energy weapon." },
+  "E27": { name: "Ion Pulse", price: 200, tier: 2, type: "energy", desc: "Disables shields for 2 ticks." },
+  "E28": { name: "Plasma Arc", price: 300, tier: 3, type: "energy", desc: "Melt chance: deals DoT to hull." },
+  "E29": { name: "Phase Laser", price: 450, tier: 4, type: "energy", desc: "20% chance to bypass shields." },
+  "E30": { name: "Focusing Lens", price: 280, tier: 3, type: "energy", desc: "Damage increases with scan duration." },
+  "E31": { name: "Prism Splitter", price: 350, tier: 3, type: "energy", desc: "Hits 2 targets at 60% damage." },
+  "E32": { name: "Photon Torch", price: 150, tier: 2, type: "energy", desc: "High damage, very short range." },
+  "E33": { name: "Neutron Stream", price: 400, tier: 4, type: "energy", desc: "Reduces enemy energy regen." },
+  "E34": { name: "Glow-Dart", price: 220, tier: 2, type: "energy", desc: "Marks target: +10% damage taken." },
+  "E35": { name: "Tachyon Lance", price: 700, tier: 4, type: "energy", desc: "Instant fire, costs 30 Energy." },
+  "E36": { name: "Sun-Spear", price: 320, tier: 3, type: "energy", desc: "Drains enemy fuel on hit." },
+  "E37": { name: "Aurora Array", price: 260, tier: 2, type: "energy", desc: "Reduces enemy accuracy." },
+  "E38": { name: "Zero-Point Beam", price: 500, tier: 4, type: "energy", desc: "Cost 0 Energy if Hull > 90%." },
+  "E39": { name: "Searing Pulse", price: 180, tier: 2, type: "energy", desc: "Small damage, sets fire." },
+  "E40": { name: "Gamma Ray", price: 340, tier: 3, type: "energy", desc: "DoT persists after jump." },
+  "E41": { name: "Pulsar Battery", price: 420, tier: 4, type: "energy", desc: "Fire rate scaled by crew." },
+  "E42": { name: "Void-Arc", price: 300, tier: 3, type: "energy", desc: "Damage scales with sector flavor." },
+  "E43": { name: "Static Burst", price: 290, tier: 2, type: "energy", desc: "Chance to reset enemy jam CD." },
+  "E44": { name: "Overclocked Emitter", price: 480, tier: 4, type: "energy", desc: "Double damage, double cost." },
+  "E45": { name: "Cryo-Laser", price: 550, tier: 4, type: "energy", desc: "Freezes enemy CDs for 1 tick." },
+  "E46": { name: "Mirror-Lens", price: 360, tier: 3, type: "energy", desc: "Deflects 10% energy damage." },
+  "E47": { name: "Lance of Longinus", price: 900, tier: 4, type: "energy", desc: "Rare long-range sniper beam." },
+  "E48": { name: "Feedback Loop", price: 440, tier: 4, type: "energy", desc: "Each hit heals 1% HP." },
+  "E49": { name: "Starlight Array", price: 380, tier: 3, type: "energy", desc: "Damage scales with adjacent sectors." },
+  "E50": { name: "Omega Ray", price: 1200, tier: 4, type: "energy", desc: "Final-tier destructive beam." },
+  // 3. ORDNANCE
+  "O51": { name: "HE Torpedo", price: 150, tier: 2, type: "ordnance", desc: "High explosive, massive damage." },
+  "O52": { name: "EMP Warhead", price: 250, tier: 3, type: "ordnance", desc: "Superior system silencing." },
+  "O53": { name: "Seeker Swarm", price: 320, tier: 3, type: "ordnance", desc: "Multiple hits, high accuracy." },
+  "O54": { name: "Thermite Missile", price: 200, tier: 2, type: "ordnance", desc: "Guaranteed fire on hit." },
+  "O55": { name: "Leech Pod", price: 380, tier: 3, type: "ordnance", desc: "Steals energy from target." },
+  "O56": { name: "Nerve Gas Pod", price: 450, tier: 4, type: "ordnance", desc: "Slows down enemy ship tick." },
+  "O57": { name: "Gravity Well", price: 500, tier: 4, type: "ordnance", desc: "Prevents target from jumping." },
+  "O58": { name: "Cluster Bomb", price: 300, tier: 3, type: "ordnance", desc: "Hits multiple system rooms." },
+  "O59": { name: "Chaff-Breaker", price: 220, tier: 2, type: "ordnance", desc: "Ignores enemy chaff." },
+  "O60": { name: "Nuke", price: 1500, tier: 4, type: "ordnance", desc: "Massive damage, radiation zone." },
+  "O61": { name: "Scrap-Torp", price: 50, tier: 1, type: "ordnance", desc: "Cheap, low-damage junk missile." },
+  "O62": { name: "Acid Spray", price: 400, tier: 3, type: "ordnance", desc: "Permanently reduces enemy armor." },
+  "O63": { name: "Beacon Missile", price: 350, tier: 3, type: "ordnance", desc: "Summons friendly NPC." },
+  "O64": { name: "Smoke Screen", price: 240, tier: 2, type: "ordnance", desc: "+50% evasion for 1 tick." },
+  "O65": { name: "Vampire Missile", price: 550, tier: 4, type: "ordnance", desc: "Heals hull for 50% dmg dealt." },
+  "O66": { name: "Decoy Pod", price: 280, tier: 2, type: "ordnance", desc: "Forces enemy to hit decoy." },
+  "O67": { name: "Solar Flare", price: 420, tier: 3, type: "ordnance", desc: "Blinds sensors for 10 ticks." },
+  "O68": { name: "Net Launcher", price: 340, tier: 3, type: "ordnance", desc: "Slows enemy roams on map." },
+  "O69": { name: "Viral Payload", price: 480, tier: 4, type: "ordnance", desc: "Steals enemy scrap over time." },
+  "O70": { name: "Magnetic Mine", price: 260, tier: 2, type: "ordnance", desc: "Sector-bound trap mines." },
+  "O71": { name: "Harpoon", price: 320, tier: 3, type: "ordnance", desc: "Prevents enemy fleeing." },
+  "O72": { name: "Echo-Torp", price: 380, tier: 3, type: "ordnance", desc: "Double hit (delayed second)." },
+  "O73": { name: "Sonic Boom", price: 450, tier: 4, type: "ordnance", desc: "Adds +2s to all enemy cooldowns." },
+  "O74": { name: "Anti-Matter Charge", price: 1e3, tier: 4, type: "ordnance", desc: "Devastating explosion." },
+  "O75": { name: "Ghost Missile", price: 600, tier: 4, type: "ordnance", desc: "Unshieldable sensor ghost." },
+  // 4. SHIELDING
+  "S76": { name: "Aegis Plate", price: 200, tier: 2, type: "shield", desc: "Flat -2 damage taken." },
+  "S77": { name: "Regen-Shield", price: 400, tier: 3, type: "shield", desc: "Hull repair at 100% shield." },
+  "S78": { name: "Hard-Light Barrier", price: 350, tier: 3, type: "shield", desc: "Strong shields, immobilizes ship." },
+  "S79": { name: "Bubble Shield", price: 500, tier: 4, type: "shield", desc: "Protects sector allies." },
+  "S80": { name: "Feedback Shield", price: 450, tier: 4, type: "shield", desc: "Damages attacker when hit." },
+  "S81": { name: "Cloaking Field", price: 600, tier: 4, type: "shield", desc: "Shields are invisible, 50% dodge." },
+  "S82": { name: "Layered Plating", price: 380, tier: 3, type: "shield", desc: "Provides 3 damage layers." },
+  "S83": { name: "Ionic Shield", price: 320, tier: 3, type: "shield", desc: "90% Ion damage resistance." },
+  "S84": { name: "Explosive Reactant", price: 420, tier: 3, type: "shield", desc: "Breaks deals damage to enemy." },
+  "S85": { name: "Siphon Shield", price: 550, tier: 4, type: "shield", desc: "Blocked damage becomes Fuel." },
+  "S86": { name: "Phase-Shift", price: 480, tier: 4, type: "shield", desc: "5% chance to ignore hit." },
+  "S87": { name: "Overcharged Cell", price: 280, tier: 2, type: "shield", desc: "+50% Shields, drains energy." },
+  "S88": { name: "Emergency Shunt", price: 520, tier: 4, type: "shield", desc: "Auto-recharge if Hull < 10%." },
+  "S89": { name: "Static Field", price: 340, tier: 2, type: "shield", desc: "Slows enemy fire rate." },
+  "S90": { name: "Prismatic Wall", price: 460, tier: 3, type: "shield", desc: "Changes resistance every tick." },
+  "S91": { name: "Gravity Buffer", price: 180, tier: 2, type: "shield", desc: "-80% asteroid damage." },
+  "S92": { name: "Micro-Drone Screen", price: 300, tier: 3, type: "shield", desc: "Intercepts hits periodically." },
+  "S93": { name: "Aura Barrier", price: 260, tier: 2, type: "shield", desc: "Ship-wide fire reduction." },
+  "S94": { name: "Capacitor Reserve", price: 370, tier: 3, type: "shield", desc: "Stores energy as extra shield." },
+  "S95": { name: "Void Shield", price: 800, tier: 4, type: "shield", desc: "Absorbs one massive hit." },
+  "S96": { name: "Temporal Shield", price: 750, tier: 4, type: "shield", desc: "Reverts last 2 ticks of damage." },
+  "S97": { name: "Mirror Finish", price: 400, tier: 3, type: "shield", desc: "Reflects laser fire." },
+  "S98": { name: "Ablative Mesh", price: 240, tier: 2, type: "shield", desc: "Shield breaks heal Hull." },
+  "S99": { name: "Fortress Logic", price: 310, tier: 3, type: "shield", desc: "Defense scales with Bridge crew." },
+  "S100": { name: "Singularity Core", price: 1500, tier: 4, type: "shield", desc: "Total invulnerability (1s)." },
+  // 5. DURABILITY
+  "D101": { name: "Titanium Frame", price: 120, tier: 1, type: "hull", desc: "+20 Max Hull." },
+  "D102": { name: "Auto-Welder", price: 450, tier: 4, type: "hull", desc: "Repairs 1 hull every 5s.", onTick: /* @__PURE__ */ __name((s) => {
+    if (s.hull < 100 && Math.random() < 0.2) s.hull++;
+  }, "onTick") },
+  "D103": { name: "Internal Sprinklers", price: 220, tier: 2, type: "hull", desc: "50% auto-extinguish fires." },
+  "D104": { name: "Blast Doors", price: 180, tier: 2, type: "hull", desc: "Fires cannot spread rooms." },
+  "D105": { name: "Reinforced Bulkheads", price: 260, tier: 3, type: "hull", desc: "Reduced system crit damage." },
+  "D106": { name: "Living Steel", price: 340, tier: 3, type: "hull", desc: "Self-heals in Nature sectors." },
+  "D107": { name: "Scrap-Alloy", price: 150, tier: 2, type: "hull", desc: "Repairs give +15 instead of +10." },
+  "D108": { name: "Rad Scrubbers", price: 110, tier: 1, type: "hull", desc: "Immune to radiation damage." },
+  "D109": { name: "Emergency O2", price: 140, tier: 2, type: "hull", desc: "Crew survives longer in vents." },
+  "D110": { name: "Hull-Spikes", price: 200, tier: 2, type: "hull", desc: "Ramming damage bonus." },
+  "D111": { name: "Shock Absorbents", price: 130, tier: 1, type: "hull", desc: "Reduced bump damage." },
+  "D112": { name: "Nanite Cloud", price: 480, tier: 4, type: "hull", desc: "Repairs systems mid-combat." },
+  "D113": { name: "Diamond Coating", price: 280, tier: 3, type: "hull", desc: "Immune to acid corrosive." },
+  "D114": { name: "Life Support Mk II", price: 300, tier: 3, type: "hull", desc: "+0.1 Energy regen." },
+  "D115": { name: "Heavy Lead Lining", price: 220, tier: 2, type: "hull", desc: "Reduced EMP silence duration." },
+  "D116": { name: "Modular Rooms", price: 400, tier: 4, type: "hull", desc: "Instant room travel." },
+  "D117": { name: "Salvage Claw", price: 250, tier: 2, type: "hull", desc: "Recover scrap even on loss." },
+  "D118": { name: "Black-Box", price: 500, tier: 4, type: "hull", desc: "Keep 50% scrap on death." },
+  "D119": { name: "Reinforced Cockpit", price: 160, tier: 2, type: "hull", desc: "Immune to disorientation." },
+  "D120": { name: "Carbon Fiber Skeleton", price: 320, tier: 3, type: "hull", desc: "-2 Jump Fuel cost." },
+  "D121": { name: "Heat Sinks", price: 280, tier: 3, type: "hull", desc: "Reduced Overcharge damage." },
+  "D122": { name: "Escape Pods", price: 600, tier: 4, type: "hull", desc: "Respawn in mini-shuttle." },
+  "D123": { name: "Pressurized Seals", price: 240, tier: 3, type: "hull", desc: "-50% fire damage." },
+  "D124": { name: "Aura of Peace", price: 350, tier: 3, type: "hull", desc: "Lower NPC aggression." },
+  "D125": { name: "The Unbreakable", price: 2e3, tier: 4, type: "hull", desc: "200 Max Hull." },
+  // 6. MOBILITY
+  "M126": { name: "FSD Optimizer", price: 150, tier: 2, type: "mobility", desc: "-5 Jump Fuel cost." },
+  "M127": { name: "Wormhole Finder", price: 800, tier: 4, type: "mobility", desc: "Jump to any linked sector." },
+  "M128": { name: "Solar Sails", price: 450, tier: 3, type: "mobility", desc: "Free jump in Star sectors." },
+  "M129": { name: "Nitro-Thrusters", price: 220, tier: 2, type: "mobility", desc: "Evade lasts 2s longer." },
+  "M130": { name: "Inertial Dampeners", price: 260, tier: 3, type: "mobility", desc: "+20% move accuracy." },
+  "M131": { name: "Afterburners", price: 500, tier: 4, type: "mobility", desc: "Escape combat (20 Energy)." },
+  "M132": { name: "Reverse Thrusters", price: 300, tier: 3, type: "mobility", desc: "Undo jump (half fuel)." },
+  "M133": { name: "Auto-Pilot", price: 100, tier: 1, type: "mobility", desc: "Slowly travel while offline." },
+  "M134": { name: "Fuel Scoops", price: 400, tier: 3, type: "mobility", desc: "Generate fuel in sectors." },
+  "M135": { name: "Slingshot Drive", price: 600, tier: 4, type: "mobility", desc: "Instant jumps." },
+  "M136": { name: "Stealth Drive", price: 550, tier: 4, type: "mobility", desc: "Stealthy jumps." },
+  "M137": { name: "Trading Computer", price: 200, tier: 2, type: "mobility", desc: "Remote shop view." },
+  "M138": { name: "Blink Drive", price: 520, tier: 4, type: "mobility", desc: "10% room teleport." },
+  "M139": { name: "Gravity Harness", price: 340, tier: 3, type: "mobility", desc: "Hazard-safe travel." },
+  "M140": { name: "Engine Overclocker", price: 420, tier: 4, type: "mobility", desc: "-1s Bridge cooldown." },
+  "M141": { name: "Long-Range Comms", price: 180, tier: 2, type: "mobility", desc: "Global player chat." },
+  "M142": { name: "Pathfinder Map", price: 360, tier: 3, type: "mobility", desc: "Revels adjacent encounters." },
+  "M143": { name: "Relativity Drive", price: 480, tier: 4, type: "mobility", desc: "10% free jump." },
+  "M144": { name: "Emergency Brake", price: 240, tier: 2, type: "mobility", desc: "Cancel jump spool." },
+  "M145": { name: "Stutter Bridge", price: 700, tier: 4, type: "mobility", desc: "2 rapid jumps possible." },
+  "M146": { name: "Maneuvering Jets", price: 200, tier: 2, type: "mobility", desc: "+5% permanent Evasion." },
+  "M147": { name: "Tug-Link", price: 450, tier: 3, type: "mobility", desc: "Jump with allies." },
+  "M148": { name: "Void-Skipper", price: 280, tier: 3, type: "mobility", desc: "Free empty-sector jumps." },
+  "M149": { name: "Chrono-Drive", price: 1e3, tier: 4, type: "mobility", desc: "Faster personal ship tick." },
+  "M150": { name: "Omega-Engine", price: 2500, tier: 4, type: "mobility", desc: "Unlimited jump range." },
+  // 7. SENSORS
+  "U151": { name: "Deep Scanner Mk II", price: 200, tier: 2, type: "sensor", desc: "Reveals NPC health." },
+  "U152": { name: "Signal Jammer", price: 350, tier: 3, type: "sensor", desc: "Prevents enemy calls." },
+  "U153": { name: "Ghost Signals", price: 400, tier: 3, type: "sensor", desc: "20% chance to be ignored." },
+  "U154": { name: "Loot-Sniffer", price: 250, tier: 2, type: "sensor", desc: "Highlights scrap sectors." },
+  "U155": { name: "Code-Breaker", price: 300, tier: 3, type: "sensor", desc: "100% derelict success." },
+  "U156": { name: "Diplomacy Module", price: 500, tier: 4, type: "sensor", desc: "Bribe pirates to leave." },
+  "U157": { name: "ID Scrambler", price: 180, tier: 2, type: "sensor", desc: "Fake ship registration." },
+  "U158": { name: "Threat Analyzer", price: 450, tier: 4, type: "sensor", desc: "Predict enemy moves." },
+  "U159": { name: "Bio-Scanner", price: 240, tier: 2, type: "sensor", desc: "See ship crew counts." },
+  "U160": { name: "Frequency Tuner", price: 320, tier: 3, type: "sensor", desc: "Advanced hailing trades." },
+  "U161": { name: "Black-Market Radio", price: 550, tier: 4, type: "sensor", desc: "Access pirate shops." },
+  "U162": { name: "Auto-Turret", price: 800, tier: 4, type: "sensor", desc: "Deals 2 dmg/s automatically.", onTick: /* @__PURE__ */ __name((s, game) => {
+    if (s.currentEncounter && s.currentEncounter.type === "ship") s.currentEncounter.hp -= 2;
+  }, "onTick") },
+  "U163": { name: "Multi-Targeter", price: 1200, tier: 4, type: "sensor", desc: "Auto-turrets hit all targets." },
+  "U164": { name: "Weak-Point Analyzer", price: 380, tier: 3, type: "sensor", desc: "+10% critical chance." },
+  "U165": { name: "Heat-Seeker", price: 220, tier: 2, type: "sensor", desc: "Never miss fleaers." },
+  "U166": { name: "EMP-Shielding", price: 440, tier: 4, type: "sensor", desc: "Immune to Jams." },
+  "U167": { name: "Sub-Space Radio", price: 600, tier: 4, type: "sensor", desc: "Hear global events early." },
+  "U168": { name: "Resource Tracker", price: 280, tier: 3, type: "sensor", desc: "Locates Leviathans." },
+  "U169": { name: "Counter-Siphons", price: 340, tier: 3, type: "sensor", desc: "Blocks energy theft." },
+  "U170": { name: "Digital Camo", price: 520, tier: 4, type: "sensor", desc: "Invisible to player scans." },
+  "U171": { name: "Logic Virus", price: 700, tier: 4, type: "sensor", desc: "Drain enemy energy." },
+  "U172": { name: "Bounty Hunter Log", price: 480, tier: 4, type: "sensor", desc: "2X scrap from hostiles." },
+  "U173": { name: "Cargo Scanner", price: 260, tier: 2, type: "sensor", desc: "See merchant stock." },
+  "U174": { name: "Advanced HUD", price: 300, tier: 3, type: "sensor", desc: "UI accessibility bonus." },
+  "U175": { name: "Omni-Sensors", price: 1500, tier: 4, type: "sensor", desc: "Infinite scan range." },
+  // 8. POWER
+  "A176": { name: "Dual Core Reactor", price: 250, tier: 2, type: "power", desc: "+50 Max Energy." },
+  "A177": { name: "Super-Conductors", price: 400, tier: 3, type: "power", desc: "+0.2 Energy regen." },
+  "A178": { name: "Emergency Battery", price: 350, tier: 3, type: "power", desc: "Auto-restore 50% energy." },
+  "A179": { name: "Cooling Pipes", price: 500, tier: 4, type: "power", desc: "Room cooldowns -15%." },
+  "A180": { name: "Power Rerouter", price: 420, tier: 4, type: "power", desc: "Free reroute command." },
+  "A181": { name: "Efficiency Coil", price: 450, tier: 4, type: "power", desc: "-2 Energy usage on all." },
+  "A182": { name: "Battery Overflow", price: 320, tier: 3, type: "power", desc: "Max energy upped to 200." },
+  "A183": { name: "Solar Panels", price: 120, tier: 1, type: "power", desc: "+0.5 regen in Star sectors." },
+  "A184": { name: "Void Reactor", price: 600, tier: 4, type: "power", desc: "Fuel-to-energy conversion." },
+  "A185": { name: "Crew Coffee Machine", price: 80, tier: 1, type: "power", desc: "Fast move room chance." },
+  "A186": { name: "Engineering Purity", price: 280, tier: 3, type: "power", desc: "Vents restore 10 Energy." },
+  "A187": { name: "Recursive Logic", price: 440, tier: 4, type: "power", desc: "Success tech refund energy." },
+  "A188": { name: "Static Discharge", price: 300, tier: 3, type: "power", desc: "Hits give energy." },
+  "A189": { name: "Harmonic Oscillator", price: 700, tier: 4, type: "power", desc: "Fuel energy pool merger." },
+  "A190": { name: "Plasma Spark", price: 180, tier: 2, type: "power", desc: "1st shot double damage." },
+  "A191": { name: "Shield-Buffer", price: 340, tier: 3, type: "power", desc: "110% shield maintenance." },
+  "A192": { name: "Kinetic Recycler", price: 320, tier: 3, type: "power", desc: "Energy on room move." },
+  "A193": { name: "Fuel-to-Burn", price: 360, tier: 3, type: "power", desc: "Energy weapons use fuel." },
+  "A194": { name: "Overclock Pro", price: 480, tier: 4, type: "power", desc: "Temporary safe overclock." },
+  "A195": { name: "Quantum Battery", price: 550, tier: 4, type: "power", desc: "Minimum energy floor." },
+  "A196": { name: "Bridge Uplink", price: 850, tier: 4, type: "power", desc: "Engineer from bridge." },
+  "A197": { name: "Weapons Link", price: 850, tier: 4, type: "power", desc: "Gunner from bridge." },
+  "A198": { name: "Cargo Link", price: 850, tier: 4, type: "power", desc: "Minner from bridge." },
+  "A199": { name: "Heart of Nebula", price: 2e3, tier: 4, type: "power", desc: "All stats +10%." },
+  "A200": { name: "The Singularity", price: 5e3, tier: 4, type: "power", desc: "Invulnerability, no jumping." }
+};
+
 // worker.js
 var NUM_SECTORS = 200;
 var ROOMS = {
@@ -1603,22 +1819,25 @@ var GameServer = class {
     this.players = {};
     this.galaxy = {};
     this.npcs = {};
+    this.stations = {};
     this.shipCounter = 1;
     this.npcCounter = 1;
     this.pendingRequests = {};
     this.sessions = [];
     this.state.blockConcurrencyWhile(async () => {
-      let stored = await this.state.storage.get(["ships", "players", "galaxy", "npcs", "shipCounter", "npcCounter", "pendingRequests"]);
+      let stored = await this.state.storage.get(["ships", "players", "galaxy", "npcs", "stations", "shipCounter", "npcCounter", "pendingRequests"]);
       this.ships = stored.get("ships") || {};
       this.players = stored.get("players") || {};
       this.galaxy = stored.get("galaxy") || {};
       this.npcs = stored.get("npcs") || {};
+      this.stations = stored.get("stations") || {};
       this.shipCounter = stored.get("shipCounter") || 1;
       this.npcCounter = stored.get("npcCounter") || 1;
       this.pendingRequests = stored.get("pendingRequests") || {};
       if (Object.keys(this.galaxy).length === 0) {
         this.generateGalaxy();
         await this.state.storage.put("galaxy", this.galaxy);
+        await this.state.storage.put("stations", this.stations);
       }
       if (Object.keys(this.npcs).length === 0) {
         this.setupNPCs();
@@ -1631,6 +1850,22 @@ var GameServer = class {
   generateGalaxy() {
     for (let i = 1; i <= NUM_SECTORS; i++) {
       this.galaxy[i] = { id: i, links: [], encounterType: null, encounterData: null };
+    }
+    const upgradeIds = Object.keys(UPGRADES);
+    for (let i = 0; i < 20; i++) {
+      const sector = Math.floor(Math.random() * NUM_SECTORS) + 1;
+      if (!this.stations[sector]) {
+        const stock = [];
+        const tempIds = [...upgradeIds];
+        for (let j = 0; j < 10; j++) {
+          const idx = Math.floor(Math.random() * tempIds.length);
+          stock.push(tempIds.splice(idx, 1)[0]);
+        }
+        this.stations[sector] = {
+          name: `Station ${String.fromCharCode(65 + i)}-${Math.floor(Math.random() * 900) + 100}`,
+          stock
+        };
+      }
     }
     for (let i = 1; i <= NUM_SECTORS; i++) {
       const numLinks = Math.floor(Math.random() * 3) + 2;
@@ -1825,12 +2060,51 @@ var GameServer = class {
     delete this.pendingRequests[shipId];
     await this.saveState();
   }
-  async handleCommand(session, cmd) {
+  async handleCommand(session, cmdString) {
     const player = this.players[session.playerId];
-    if (!player) return;
-    const args = cmd.trim().split(" ");
-    const mainCmd = args[0].toLowerCase();
     const ws = session.ws;
+    if (!player) return;
+    const args = cmdString.trim().split(/\s+/);
+    let mainCmd = args[0].toLowerCase();
+    const ALIAS_MAP = {
+      "l": "look",
+      "m": "move",
+      "h": "help",
+      "?": "help",
+      "w": "who",
+      "rn": "rename",
+      "j": "jump",
+      "s": "scan",
+      "sc": "scan",
+      "hl": "hail",
+      "sh": "shields",
+      "ev": "evade",
+      "jm": "jam",
+      "a": "attack",
+      "t": "target",
+      "e": "emp",
+      "cf": "chaff",
+      "oc": "overcharge",
+      "fk": "flak",
+      "r": "repair",
+      "p": "patch",
+      "rr": "reroute",
+      "ov": "overclock",
+      "sn": "siphon",
+      "v": "vent",
+      "mn": "mine",
+      "rf": "refine",
+      "al": "airlock",
+      "pb": "probe",
+      "dr": "drone",
+      "hd": "hide",
+      "dk": "dock",
+      "b": "buy",
+      "i": "inventory",
+      "inv": "inventory"
+    };
+    if (ALIAS_MAP[mainCmd]) mainCmd = ALIAS_MAP[mainCmd];
+    const ship = player.shipId ? this.ships[player.shipId] : null;
     if (player.state === "LOBBY") {
       await this.handleLobbyCommand(session, player, mainCmd, args);
     } else {
@@ -1855,7 +2129,11 @@ var GameServer = class {
         energy: 50,
         maxEnergy: 50,
         hull: 100,
-        scrap: 15,
+        scrap: 25,
+        // Increased from 15
+        credits: 250,
+        // Increased from 200
+        upgrades: [],
         currentEncounter: null,
         cooldowns: { "Bridge": 0, "Weapons Cntrl": 0, "Cargo Bay": 0, "Engineering": 0 },
         crew: [player.id],
@@ -2127,13 +2405,13 @@ var GameServer = class {
         this.send(ws, "log", { message: "ERROR: SHIELDS ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
         return;
       }
-      if (ship.energy < 5) {
-        this.send(ws, "log", { message: "ERROR: INSUFFICIENT ENERGY.", color: "#FF0000" });
+      if (ship.energy < 15) {
+        this.send(ws, "log", { message: "ERROR: INSUFFICIENT ENERGY. (15 REQ)", color: "#FF0000" });
         return;
       }
-      ship.energy -= 5;
+      ship.energy -= 15;
       ship.shieldsActive = true;
-      broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-5 Energy)`, "#00FFFF");
+      broadcast(`[BRIDGE] INCOMING DAMAGE MITIGATION ACTIVE. (-15 Energy, Absorbs 8 DMG)`, "#00FFFF");
     } else if (mainCmd === "evade") {
       if (player.room !== ROOMS["bridge"]) {
         this.send(ws, "log", { message: "ERROR: HELM ACCESSED FROM BRIDGE ONLY.", color: "#FF0000" });
@@ -2255,6 +2533,10 @@ var GameServer = class {
         ship.energy -= 5;
         ship.cooldowns["Weapons Cntrl"] = 3;
         let dmg = Math.floor(Math.random() * 20) + 10;
+        if (Math.random() < 0.05) {
+          dmg = Math.floor(dmg * 1.5);
+          this.send(ws, "log", { message: `[!!!] CRITICAL HIT! Main battery struck a vulnerable sector!`, color: "#00FF00" });
+        }
         if (ship.overchargeActive) {
           dmg *= 2;
           ship.overchargeActive = false;
@@ -2344,14 +2626,14 @@ var GameServer = class {
         return;
       }
       if (mainCmd === "repair") {
-        if (ship.scrap < 5 || ship.hull >= 100) {
-          this.send(ws, "log", { message: "ERROR: Requires 5 Scrap or Hull is already full.", color: "#FF0000" });
+        if (ship.scrap < 10 || ship.hull >= 100) {
+          this.send(ws, "log", { message: "ERROR: Requires 10 Scrap or Hull is already full.", color: "#FF0000" });
           return;
         }
-        ship.scrap -= 5;
+        ship.scrap -= 10;
         ship.hull = Math.min(100, ship.hull + 10);
         ship.cooldowns["Engineering"] = 5;
-        broadcast(`[ENGINEERING] Heavy hull repair complete. (+10 Hull)`, "#00FF00");
+        broadcast(`[ENGINEERING] Heavy hull repair complete. (+10 Hull, -10 Scrap)`, "#00FF00");
       } else if (mainCmd === "reroute") {
         const targetRoomStr = args[1]?.toLowerCase();
         let targetRoomMap = { "bridge": "Bridge", "weapons": "Weapons Cntrl", "cargo": "Cargo Bay" };
@@ -2540,17 +2822,128 @@ var GameServer = class {
         player.name = newName;
         broadcast(`[SYS] ${oldName} is now known as ${newName}.`, "#00FF00");
       }
+    } else if (mainCmd === "scan") {
+      const sectorData = this.galaxy[ship.sector];
+      const station = this.stations[ship.sector];
+      this.send(ws, "log", { message: `--- LONG RANGE SENSOR LOG ---`, color: "#00FFFF" });
+      this.send(ws, "log", { message: `SECTOR: ${sectorData.id}`, color: "#FFFFFF" });
+      this.send(ws, "log", { message: `HYPERLANES: ${sectorData.links.join(", ")}`, color: "#FFFFFF" });
+      if (station) {
+        this.send(ws, "log", { message: `[!!!] STATION DETECTED: ${station.name}`, color: "#00FF00" });
+      }
+      this.send(ws, "log", { message: `SIGNATURES: ${sectorData.encounterType ? sectorData.encounterType.toUpperCase() : "CLEAR"}`, color: "#FFFFFF" });
+      this.send(ws, "update_sector", { ...sectorData, station });
     } else if (mainCmd === "help") {
       this.send(ws, "log", { message: `--- COMMAND PROTOCOLS ---`, color: "#FFFF00" });
-      this.send(ws, "log", { message: `> GLOBAL: move <room>, who, rename <name>, rename ship <name>, help`, color: "#FFFFFF" });
+      this.send(ws, "log", { message: `> GLOBAL: move [m], who [w], rename ship [rn], look [l], help [h/?]`, color: "#FFFFFF" });
       if (player.room === ROOMS["bridge"]) {
-        this.send(ws, "log", { message: `> BRIDGE: jump <sector>, scan [deep], hail, shields, evade, jam, comm server <msg>`, color: "#00FFFF" });
+        this.send(ws, "log", { message: `> BRIDGE: jump [j], scan [s], hail [hl], shields [sh], evade [ev], jam [jm], comm server`, color: "#00FFFF" });
       } else if (player.room === ROOMS["weapons"]) {
-        this.send(ws, "log", { message: `> WEAPONS: attack, target <sys>, emp, chaff, overcharge, flak`, color: "#FF00FF" });
+        this.send(ws, "log", { message: `> WEAPONS: attack [a], target [t], emp [e], chaff [cf], overcharge [oc], flak [fk]`, color: "#FF00FF" });
       } else if (player.room === ROOMS["cargo"]) {
-        this.send(ws, "log", { message: `> CARGO BAY: mine, refine <sys>, airlock, probe, drone, hide`, color: "#00FF00" });
+        this.send(ws, "log", { message: `> CARGO BAY: mine [mn], refine [rf], airlock [al], probe [pb], drone [dr], hide [hd]`, color: "#00FF00" });
       } else if (player.room === ROOMS["engineering"]) {
-        this.send(ws, "log", { message: `> ENGINEERING: repair, reroute <room>, patch, overclock, siphon, vent`, color: "#FFA500" });
+        this.send(ws, "log", { message: `> ENGINEERING: repair [r], reroute [rr], patch [p], overclock [ov], siphon [sn], vent [v]`, color: "#FFA500" });
+      }
+      this.send(ws, "log", { message: `> SHIP: scan [s], hail [hl], dock [dk], buy [b], inventory [i/inv]`, color: "#FFFFFF" });
+    } else if (mainCmd === "dock") {
+      const station = this.stations[ship.sector];
+      if (!station) {
+        this.send(ws, "log", { message: "ERROR: NO SPACE STATION IN THIS SECTOR.", color: "#FF0000" });
+        return;
+      }
+      this.send(ws, "log", { message: `--- DOCKED AT ${station.name.toUpperCase()} ---`, color: "#00FF00" });
+      this.send(ws, "log", { message: `CREDITS: ${ship.credits} | SCRAP: ${ship.scrap}`, color: "#FFFF00" });
+      this.send(ws, "log", { message: `AVAILABLE MODULES:`, color: "#00FFFF" });
+      station.stock.forEach((id) => {
+        const u = UPGRADES[id];
+        this.send(ws, "log", { message: `[${id}] ${u.name} - ${u.price}c: ${u.desc}`, color: "#FFFFFF" });
+      });
+      this.send(ws, "log", { message: `Type 'buy <id>' to purchase.`, color: "#AAAAAA" });
+    } else if (mainCmd === "look") {
+      const target = args.length > 1 ? args.slice(1).join(" ").toLowerCase() : null;
+      if (!target) {
+        let desc = ROOM_DESCRIPTIONS[player.room] || "A functional part of the ship.";
+        if (player.room === ROOMS["bridge"]) {
+          const sectorDesc = SECTOR_FLAVOR[ship.sector % SECTOR_FLAVOR.length];
+          desc += `
+
+THROUGH THE VIEWPORT: ${sectorDesc}`;
+        }
+        this.send(ws, "log", { message: `--- ${player.room.toUpperCase()} ---`, color: "#FFFF00" });
+        this.send(ws, "log", { message: desc, color: "#FFFFFF" });
+      } else if (target === "ship") {
+        this.send(ws, "log", { message: `--- THE ${ship.name} ---`, color: "#00FFFF" });
+        this.send(ws, "log", { message: "A rugged, blocky Spiral Nebula tugboat. Her hull is scarred by micro-meteors and old docking accidents, but she's reliable and has a certain industrial charm.", color: "#FFFFFF" });
+      } else if (target === "sector") {
+        const sectorDesc = SECTOR_FLAVOR[ship.sector % SECTOR_FLAVOR.length];
+        this.send(ws, "log", { message: `--- SECTOR ${ship.sector} ---`, color: "#FFFF00" });
+        this.send(ws, "log", { message: sectorDesc, color: "#FFFFFF" });
+      } else {
+        let foundUpgrade = null;
+        for (const upgradeId of ship.upgrades) {
+          const u = UPGRADES[upgradeId];
+          if (u.name.toLowerCase().includes(target) || upgradeId.toLowerCase() === target) {
+            foundUpgrade = u;
+            break;
+          }
+        }
+        if (foundUpgrade) {
+          this.send(ws, "log", { message: `--- ${foundUpgrade.name.toUpperCase()} ---`, color: "#00FF00" });
+          this.send(ws, "log", { message: foundUpgrade.desc, color: "#FFFFFF" });
+        } else {
+          let enc = ship.currentEncounter;
+          let localNpcs = Object.values(this.npcs).filter((n) => n.sector === ship.sector && n.hp > 0);
+          let targetNpc = null;
+          if (enc && (enc.name.toLowerCase().includes(target) || target === "target" || target === "enemy" || enc.id && enc.id.toLowerCase() === target)) {
+            targetNpc = enc;
+          } else {
+            targetNpc = localNpcs.find((n) => n.name.toLowerCase().includes(target) || n.id.toLowerCase() === target);
+          }
+          if (targetNpc) {
+            this.send(ws, "log", { message: `--- ${targetNpc.name.toUpperCase()} ---`, color: "#FF0000" });
+            let encDesc = "A formidable signature on your scanners.";
+            if (targetNpc.type === "ship") encDesc = "A vessel of unknown intent, its systems humming with potential energy.";
+            if (targetNpc.type === "asteroid") encDesc = "A massive chunk of ore and stone, drifting silently through the void.";
+            if (targetNpc.type === "merchant") encDesc = "A heavily laden trading vessel, its hull covered in the decals of various merchant guilds.";
+            if (targetNpc.type === "leviathan") encDesc = "An ancient, organic mass of scales and bioluminescent tendrils. It ignores you with a cold, primordial indifference.";
+            this.send(ws, "log", { message: encDesc, color: "#FFFFFF" });
+          } else {
+            this.send(ws, "log", { message: `ERROR: Cannot see '${target}' here.`, color: "#FF0000" });
+          }
+        }
+      }
+    } else if (mainCmd === "buy") {
+      const station = this.stations[ship.sector];
+      const upgradeId = args[1]?.toUpperCase();
+      if (!station || !station.stock.includes(upgradeId)) {
+        this.send(ws, "log", { message: "ERROR: MODULE NOT AVAILABLE AT THIS STATION.", color: "#FF0000" });
+        return;
+      }
+      const upgrade = UPGRADES[upgradeId];
+      if (ship.upgrades.includes(upgradeId)) {
+        this.send(ws, "log", { message: `ERROR: ${upgrade.name} ALREADY INSTALLED.`, color: "#FF0000" });
+        return;
+      }
+      if (ship.credits < upgrade.price) {
+        this.send(ws, "log", { message: `ERROR: INSUFFICIENT CREDITS. REQUIRED: ${upgrade.price}`, color: "#FF0000" });
+        return;
+      }
+      ship.credits -= upgrade.price;
+      ship.upgrades.push(upgradeId);
+      broadcast(`[SYS] ${player.name} purchased and installed ${upgrade.name.toUpperCase()}.`, "#00FF00");
+      if (upgradeId === "D101") ship.hull = Math.min(120, ship.hull + 20);
+      if (upgradeId === "D125") ship.hull = 200;
+      await this.saveState();
+    } else if (mainCmd === "inventory") {
+      if (ship.upgrades.length === 0) {
+        this.send(ws, "log", { message: "NO UPGRADES INSTALLED.", color: "#AAAAAA" });
+      } else {
+        this.send(ws, "log", { message: `--- SHIP SYSTEMS INVENTORY ---`, color: "#FFFF00" });
+        ship.upgrades.forEach((id) => {
+          const u = UPGRADES[id];
+          this.send(ws, "log", { message: `[${id}] ${u.name}: ${u.desc}`, color: "#FFFFFF" });
+        });
       }
     } else {
       this.send(ws, "log", { message: `Action '${mainCmd}' not recognized.`, color: "#AAAAAA" });
@@ -2580,7 +2973,7 @@ var GameServer = class {
           });
         }, "broadcast");
         if (ship.energy < ship.maxEnergy) {
-          let regen = ship.overclockActive ? 0.6 : 0.2;
+          let regen = ship.overclockActive ? 1 : 0.5;
           ship.energy = Math.min(ship.maxEnergy, ship.energy + regen);
           stateChanged = true;
         }
@@ -2617,19 +3010,25 @@ var GameServer = class {
         if (ship.jammedCooldown > 0) ship.jammedCooldown--;
         if (ship.currentEncounter && ship.currentEncounter.type === "ship") {
           if (ship.enemyModifiers.emped === 0 && ship.jammedCooldown === 0) {
-            if (Math.random() < 0.1) {
-              if (ship.evadeActive && Math.random() < 0.7) {
+            if (Math.random() < 0.15) {
+              if (ship.evadeActive && Math.random() < 0.85) {
                 broadcast(`[BRIDGE] EVASIVE MANEUVERS SUCCESSFUL! Incoming fire missed!`, "#00FF00");
                 ship.evadeActive = false;
               } else if (ship.chaffActive) {
                 broadcast(`[WEAPONS] CHAFF DEPLOYED! Incoming missiles deflected!`, "#00FF00");
                 ship.chaffActive = false;
               } else {
-                let dmg = Math.floor(Math.random() * 10) + 5;
+                const sectorModifier = 1 + ship.sector / NUM_SECTORS;
+                let baseDmg = Math.floor(Math.random() * 10) + 5;
+                let dmg = Math.floor(baseDmg * sectorModifier);
+                if (Math.random() < 0.05) {
+                  dmg = Math.floor(dmg * 1.5);
+                  broadcast(`[!!!] CRITICAL HIT DETECTED! TARGET STRUCK VULNERABLE SYSTEM rooms!`, "#FF0000");
+                }
                 if (ship.enemyModifiers.weaponsDisabled > 0) dmg = Math.floor(dmg / 2);
                 if (ship.shieldsActive) {
-                  dmg = Math.max(0, dmg - 5);
-                  broadcast(`[SHIELDS] Absorbed 5 damage.`, "#00FFFF");
+                  dmg = Math.max(0, dmg - 8);
+                  broadcast(`[SHIELDS] Absorbed 8 damage.`, "#00FFFF");
                   ship.shieldsActive = false;
                 }
                 ship.hull -= dmg;
@@ -2647,9 +3046,35 @@ var GameServer = class {
           stateChanged = true;
           continue;
         }
+        if (ship.upgrades.includes("D102")) {
+          if (ship.hull < 100 && Math.random() < 0.1) {
+            ship.hull++;
+            stateChanged = true;
+          }
+        }
+        if (ship.upgrades.includes("U162")) {
+          if (ship.currentEncounter && ship.currentEncounter.type === "ship") {
+            ship.currentEncounter.hp -= 2;
+            if (ship.currentEncounter.hp <= 0) {
+              broadcast(`[WEAPONS] AUTO-TURRET CRYSTALLIZED TARGET.`, "#00FF00");
+            }
+            stateChanged = true;
+          }
+        }
+        if (ship.upgrades.includes("A177")) {
+          ship.energy = Math.min(ship.maxEnergy, ship.energy + 0.2);
+          stateChanged = true;
+        }
         ship.crew.forEach((mid) => {
           const ses = this.sessions.find((s) => s.playerId === mid);
-          if (ses) this.send(ses.ws, "ship_sync", { hull: ship.hull, fuel: ship.fuel, energy: Math.floor(ship.energy), scrap: ship.scrap, cooldowns: ship.cooldowns });
+          if (ses) this.send(ses.ws, "ship_sync", {
+            hull: ship.hull,
+            fuel: ship.fuel,
+            energy: Math.floor(ship.energy),
+            scrap: ship.scrap,
+            credits: ship.credits,
+            cooldowns: ship.cooldowns
+          });
         });
       }
       if (!this.npcTickCounter) this.npcTickCounter = 0;
