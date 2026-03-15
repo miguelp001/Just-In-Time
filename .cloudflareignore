@@ -1,3 +1,12 @@
-node_modules
-.git
-.github
+node_modules/
+**/node_modules/**
+.git/
+.github/
+.antigravity/
+brain/
+implementation_plan.md
+task.md
+walkthrough.md
+package.json
+package-lock.json
+README.md
