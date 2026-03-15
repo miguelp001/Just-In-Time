@@ -115,7 +115,7 @@ class MainScene extends Phaser.Scene {
         this.currentInput = "";
         
         // --- Mobile Input Support ---
-        const mobileInput = document.getElementById('mobile-input');
+        this.mobileInput = document.getElementById('mobile-input');
         
         this.input.keyboard.on('keydown', (event) => {
             // Prevent default browser actions for space and backspace
@@ -126,38 +126,38 @@ class MainScene extends Phaser.Scene {
             if (event.keyCode === 8 && this.currentInput.length > 0) {
                 // Backspace
                 this.currentInput = this.currentInput.slice(0, -1);
-                if (mobileInput) mobileInput.value = this.currentInput;
+                if (this.mobileInput) this.mobileInput.value = this.currentInput;
             } else if (event.keyCode === 13) {
                 // Enter
                 if (this.currentInput.trim().length > 0) {
                     this.processCommand(this.currentInput);
                     this.currentInput = "";
-                    if (mobileInput) mobileInput.value = "";
+                    if (this.mobileInput) this.mobileInput.value = "";
                 }
             } else if (event.keyCode === 32 || (event.keyCode >= 48 && event.keyCode <= 90) || event.keyCode === 189 || event.keyCode === 173 || event.keyCode === 190) {
                 // Alphanumeric + Space + Hyphen + Dot
                 this.currentInput += event.key.toLowerCase();
-                if (mobileInput) mobileInput.value = this.currentInput;
+                if (this.mobileInput) this.mobileInput.value = this.currentInput;
             }
             if (!this.gameState.isGameOver) {
                  this.updatePrompt();
             }
         });
 
-        if (mobileInput) {
-            mobileInput.addEventListener('input', (event) => {
+        if (this.mobileInput) {
+            this.mobileInput.addEventListener('input', (event) => {
                 this.currentInput = event.target.value;
                 if (!this.gameState.isGameOver) {
                     this.updatePrompt();
                 }
             });
             
-            mobileInput.addEventListener('keydown', (event) => {
+            this.mobileInput.addEventListener('keydown', (event) => {
                 if (event.keyCode === 13) {
                     if (this.currentInput.trim().length > 0) {
                         this.processCommand(this.currentInput);
                         this.currentInput = "";
-                        mobileInput.value = "";
+                        this.mobileInput.value = "";
                         if (!this.gameState.isGameOver) {
                             this.updatePrompt();
                         }
@@ -369,10 +369,10 @@ class MainScene extends Phaser.Scene {
                 e.preventDefault();
                 e.stopPropagation();
             }
-            if (mobileInput) {
-                mobileInput.focus();
+            if (this.mobileInput) {
+                this.mobileInput.focus();
                 // Some Android browsers need a second attempt or a small delay
-                setTimeout(() => mobileInput.focus(), 10);
+                setTimeout(() => this.mobileInput.focus(), 0);
                 this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
             } else {
                 this.logMessage("ERROR: Input proxy missing.", COLORS.RED);
