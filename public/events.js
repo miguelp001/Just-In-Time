@@ -483,28 +483,35 @@ const GAME_EVENTS = [
         id: "derelict_grave_of_the_leviathan",
         title: "Grave of the Leviathan",
         type: "derelict",
-        text: "A massive, ancient alien skeleton floating in space. Mining it yields strange biological `Scrap`.",
+        text: "A massive, ancient alien skeleton floating in space. Its bones hum with residual bio-energy.",
         options: [
             {
-                command: "salvage",
+                command: "harvest",
                 requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                description: "Harvest bio-matter (Risk: 40% alien parasite, -20 Hull)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    if (Math.random() > 0.4) {
+                        ship.scrap += 25;
+                        ship.credits += 15;
+                        broadcast("Harvested alien bio-composites. Rich material! (+25 Scrap, +15 Credits)", COLORS.GREEN);
                     } else {
-                        broadcast("Not enough energy.", COLORS.RED);
+                        ship.hull -= 20;
+                        ship.fires = (ship.fires || 0) + 1;
+                        broadcast("PARASITIC ORGANISMS! They breach the hull and start a fire! (-20 Hull, +1 Fire)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "scan",
+                requiredRoom: "bridge",
+                description: "Scan the remains from a safe distance (-5 Energy)",
+                execute: (ship, player, broadcast) => {
+                    ship.energy -= 5;
+                    ship.credits += 20;
+                    broadcast("Deep scan data sold to xenobiologists. Safe profit. (-5 Energy, +20 Credits)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -512,28 +519,32 @@ const GAME_EVENTS = [
         id: "derelict_corpo_blacksite_station",
         title: "Corpo Blacksite Station",
         type: "derelict",
-        text: "A heavily shielded, unlisted station. Hacking it requires massive `Energy` but offers high-tier tech (`Credits`/`Scrap`).",
+        text: "A heavily shielded, unlisted station. The firewalls are thick, but the data inside is worth a fortune.",
         options: [
             {
-                command: "salvage",
-                requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                command: "hack",
+                requiredRoom: "engineering",
+                description: "Brute-force hack (-25 Energy, high reward)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    if (ship.energy >= 25) {
+                        ship.energy -= 25;
+                        ship.credits += 80;
+                        broadcast("FIREWALL BREACHED. Downloaded classified schematics worth 80 Credits! (-25 Energy)", COLORS.GREEN);
                     } else {
-                        broadcast("Not enough energy.", COLORS.RED);
+                        broadcast("ERROR: Insufficient energy to sustain the hack. Need 25 Energy.", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "salvage",
+                requiredRoom: "cargo",
+                description: "Strip exterior panels for safe scrap",
+                execute: (ship, player, broadcast) => {
+                    ship.scrap += 12;
+                    broadcast("Stripped external armor plating. Safe haul. (+12 Scrap)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -541,28 +552,31 @@ const GAME_EVENTS = [
         id: "derelict_the_flying_dutchman",
         title: "The Flying Dutchman",
         type: "derelict",
-        text: "A legendary ghost ship of the sector. Leaving it alone is safe; attacking it curses your `Energy` regeneration for 3 jumps.",
+        text: "A legendary ghost ship of the sector. Its hull phases in and out of reality. The cargo hold glows with eerie light.",
         options: [
             {
-                command: "salvage",
+                command: "board",
                 requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                description: "Board the ghost ship (50%: +100 Credits, 50%: -30 Hull + Fire)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    if (Math.random() > 0.5) {
+                        ship.credits += 100;
+                        broadcast("The spectral cargo hold contains phantom currency that solidifies on touch! (+100 Credits)", COLORS.GREEN);
                     } else {
-                        broadcast("Not enough energy.", COLORS.RED);
+                        ship.hull -= 30;
+                        ship.fires = (ship.fires || 0) + 2;
+                        broadcast("THE SHIP PHASES THROUGH YOURS! Massive structural damage and ghostfire! (-30 Hull, +2 Fires)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                description: "Leave the legend alone",
+                execute: (ship, player, broadcast) => {
+                    broadcast("Wisely, you steer clear. The Dutchman fades into the void.", COLORS.GRAY);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -570,28 +584,33 @@ const GAME_EVENTS = [
         id: "derelict_drifting_escape_pod",
         title: "Drifting Escape Pod",
         type: "derelict",
-        text: "A pod with frozen, long-dead occupants. Salvaging it feels wrong, but yields `Scrap`. (Miners reputation decreases if seen).",
+        text: "A cryo-pod with frozen, long-dead occupants. Their personal effects might be valuable... or cursed.",
         options: [
             {
-                command: "salvage",
+                command: "loot",
                 requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                description: "Search the bodies (gain Credits, risk: cooldown penalty)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    ship.credits += 30;
+                    if (Math.random() < 0.3) {
+                        for (const room in ship.cooldowns) { ship.cooldowns[room] += 3; }
+                        broadcast("Found 30 Credits in personal effects, but a bio-alarm triggered! All cooldowns +3! (+30 Cr)", COLORS.YELLOW);
                     } else {
-                        broadcast("Not enough energy.", COLORS.RED);
+                        broadcast("Found 30 Credits worth of personal effects. Rest in peace. (+30 Credits)", COLORS.GREEN);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "bury",
+                requiredRoom: "bridge",
+                description: "Give them a proper space burial (-5 Fuel)",
+                execute: (ship, player, broadcast) => {
+                    ship.fuel -= 5;
+                    ship.hull += 5;
+                    broadcast("You fire the pod into the nearest star. The crew feels at peace. Hull micro-fractures seal. (-5 Fuel, +5 Hull)", COLORS.CYAN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -599,28 +618,32 @@ const GAME_EVENTS = [
         id: "derelict_automated_factory_barge",
         title: "Automated Factory Barge",
         type: "derelict",
-        text: "Still producing goods despite lacking a crew. You can dock to trade `Scrap` for `Fuel`.",
+        text: "The factory AI is stuck in a loop, endlessly assembling and then smelting down ship components.",
         options: [
             {
-                command: "salvage",
-                requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                command: "override",
+                requiredRoom: "engineering",
+                description: "Overload the smelter (-15 Energy, gain Scrap)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    if (ship.energy >= 15) {
+                        ship.energy -= 15;
+                        ship.scrap += 40;
+                        broadcast("Reactor spike forced the smelter to eject its raw reserves! (+40 Scrap, -15 Energy)", COLORS.GREEN);
                     } else {
-                        broadcast("Not enough energy.", COLORS.RED);
+                        broadcast("Insufficient energy to force an override.", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "salvage",
+                requiredRoom: "cargo",
+                description: "Carefully pick through the conveyor lines",
+                execute: (ship, player, broadcast) => {
+                    ship.scrap += 15;
+                    broadcast("You salvaged active components before they were recycled. (+15 Scrap)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -628,18 +651,22 @@ const GAME_EVENTS = [
         id: "derelict_pirate_s_stash",
         title: "Pirate's Stash",
         type: "derelict",
-        text: "A hollowed-out asteroid containing a pirate loot cache. Taking it grants `Credits` and `Fuel`, but decreases Pirate reputation drastically.",
+        text: "A hollowed-out asteroid containing a pirate loot cache. The encryption is brutal.",
         options: [
             {
-                command: "salvage",
-                requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                command: "hack",
+                requiredRoom: "bridge",
+                description: "Crack the vault (-10 Energy, 70% success)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    if (ship.energy >= 10) {
+                        ship.energy -= 10;
+                        if (Math.random() > 0.3) {
+                            ship.credits += 60;
+                            ship.fuel += 5;
+                            broadcast("Vault cracked! Stolen credits and fuel siphoned. (+60 Credits, +5 Fuel)", COLORS.GREEN);
+                        } else {
+                            broadcast("HACK FAILED. The vault's logic-bomb fried your sensors. (-10 Energy)", COLORS.RED);
+                        }
                     } else {
                         broadcast("Not enough energy.", COLORS.RED);
                     }
@@ -647,9 +674,14 @@ const GAME_EVENTS = [
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "salvage",
+                requiredRoom: "cargo",
+                description: "Strip the vault's outer casing for scrap",
+                execute: (ship, player, broadcast) => {
+                    ship.scrap += 10;
+                    broadcast("You take what you can without touching the traps. (+10 Scrap)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -657,28 +689,28 @@ const GAME_EVENTS = [
         id: "derelict_generation_ship_debris",
         title: "Generation Ship Debris",
         type: "derelict",
-        text: "Wreckage from an ancient colonization attempt. Careful salvage yields historical artifacts (`Credits`).",
+        text: "Wreckage from a pre-jump colony ship. Its archives contain centuries of untouched data.",
         options: [
             {
-                command: "salvage",
-                requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                command: "archive",
+                requiredRoom: "bridge",
+                description: "Recover historical data (-8 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
-                    } else {
-                        broadcast("Not enough energy.", COLORS.RED);
-                    }
+                    ship.energy -= 8;
+                    ship.credits += 45;
+                    broadcast("Academic guilds will pay a high price for these records. (+45 Credits, -8 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "salvage",
+                requiredRoom: "cargo",
+                description: "Strip the ancient hull for scrap",
+                execute: (ship, player, broadcast) => {
+                    ship.scrap += 20;
+                    broadcast("The old alloys are rare and valuable. (+20 Scrap)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -686,18 +718,22 @@ const GAME_EVENTS = [
         id: "derelict_self_replicating_minefield",
         title: "Self-Replicating Minefield",
         type: "derelict",
-        text: "An old war zone where derelicts are surrounded by mines. High risk of `Hull` damage, but high `Scrap` reward.",
+        text: "A web of smart-mines surround a cluster of salvageable hulls. They react to movement.",
         options: [
             {
-                command: "salvage",
-                requiredRoom: "cargo",
-                description: "Tear it down for scrap (-10 Energy)",
+                command: "defuse",
+                requiredRoom: "engineering",
+                description: "Broadcast a deactivation code (-12 Energy, Risk: 30% -20 Hull)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
-                        const scrap = Math.floor(Math.random() * 15) + 5;
-                        ship.scrap += scrap;
-                        broadcast("Salvaged " + scrap + " Scrap.", COLORS.GREEN);
+                    if (ship.energy >= 12) {
+                        ship.energy -= 12;
+                        if (Math.random() > 0.3) {
+                            ship.scrap += 50;
+                            broadcast("Mines powered down. Safe passage to the core salvage! (+50 Scrap, -12 Energy)", COLORS.GREEN);
+                        } else {
+                            ship.hull -= 20;
+                            broadcast("BOOM! A mine detected the hack and detonated! (-20 Hull)", COLORS.RED);
+                        }
                     } else {
                         broadcast("Not enough energy.", COLORS.RED);
                     }
@@ -705,9 +741,15 @@ const GAME_EVENTS = [
                 }
             },
             {
-                command: "ignore",
-                description: "Pass by",
-                execute: (ship, player, broadcast) => { broadcast("Passed by.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "bypass",
+                requiredRoom: "bridge",
+                description: "Navigate through the gaps (-10 Fuel)",
+                execute: (ship, player, broadcast) => {
+                    ship.fuel -= 10;
+                    ship.scrap += 20;
+                    broadcast("Precision flying got you in and out. (+20 Scrap, -10 Fuel)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -715,15 +757,35 @@ const GAME_EVENTS = [
         id: "faction_miner_strike",
         title: "Miner Strike",
         type: "faction",
-        text: "Free Miners are blockading a jump gate. Paying a toll in `Credits` passes safely; attacking them ruins reputation.",
+        text: "Free Miners are blockading a jump gate, protesting corporate fuel prices. They demand a donation to their strike fund.",
         options: [
             {
-                command: "hail",
+                command: "donate",
                 requiredRoom: "bridge",
-                description: "Hail them on comms",
+                description: "Donate 20 Credits (+Rep, skip blockade)",
                 execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
+                    if (ship.credits >= 20) {
+                        ship.credits -= 20;
+                        ship.factions.miners += 5;
+                        broadcast("The miners clear a path. 'Thanks for the solidarity, pilot.' (+5 Miner Rep, -20 Credits)", COLORS.GREEN);
+                    } else {
+                        broadcast("You don't have enough credits to support the cause.", COLORS.RED);
+                    }
                     ship.currentEncounter = null;
+                }
+            },
+            {
+                command: "negotiate",
+                requiredRoom: "bridge",
+                description: "Convince them you're just a tugboat (-10 Energy)",
+                execute: (ship, player, broadcast) => {
+                    ship.energy -= 10;
+                    if (Math.random() > 0.4) {
+                        broadcast("Your humble plea works. They let you through out of pity. (-10 Energy)", COLORS.GREEN);
+                        ship.currentEncounter = null;
+                    } else {
+                        broadcast("They don't buy it. 'Look at those upgrades! You're corporate!' Blockade holds.", COLORS.RED);
+                    }
                 }
             }
         ]
@@ -732,15 +794,34 @@ const GAME_EVENTS = [
         id: "faction_corporate_inspection",
         title: "Corporate Inspection",
         type: "faction",
-        text: "A Corpo Sec patrol demands to scan your cargo for contraband. Compliance is safe; refusal initiates difficult combat.",
+        text: "A Corpo Sec patrol demands to scan your cargo for 'unauthorized salvage'. Refusing is a crime.",
         options: [
             {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
+                command: "allow",
+                requiredRoom: "cargo",
+                description: "Allow scan (50% chance they seize 10 Scrap)",
                 execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
+                    if (Math.random() > 0.5 && ship.scrap >= 10) {
+                        ship.scrap -= 10;
+                        broadcast("They found 'improperly logged' materials and seized them. (-10 Scrap)", COLORS.YELLOW);
+                    } else {
+                        broadcast("Scan clean. 'Move along, civilian.'", COLORS.GREEN);
+                    }
                     ship.currentEncounter = null;
+                }
+            },
+            {
+                command: "bribe",
+                requiredRoom: "bridge",
+                description: "Offer a 'service fee' of 40 Credits",
+                execute: (ship, player, broadcast) => {
+                    if (ship.credits >= 40) {
+                        ship.credits -= 40;
+                        broadcast("The inspectors look the other way. 'Have a productive day.' (-40 Credits)", COLORS.GREEN);
+                        ship.currentEncounter = null;
+                    } else {
+                        broadcast("Not enough credits to bribe the patrol.", COLORS.RED);
+                    }
                 }
             }
         ]
@@ -749,116 +830,31 @@ const GAME_EVENTS = [
         id: "faction_pirate_toll_gate",
         title: "Pirate Toll Gate",
         type: "faction",
-        text: "Scrap Pirates demand a portion of your `Fuel` to let you pass. ",
+        text: "Scrap Pirates have anchored a 'toll station' in the hyperlane. 'Pay 15 Fuel or we open fire.'",
         options: [
             {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
+                command: "pay",
+                requiredRoom: "cargo",
+                description: "Eject 15 Fuel (-15 Fuel)",
                 execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
-                    ship.currentEncounter = null;
+                    if (ship.fuel >= 15) {
+                        ship.fuel -= 15;
+                        broadcast("You dump the canisters. The pirates move to retrieve them. (+Safe passage)", COLORS.YELLOW);
+                        ship.currentEncounter = null;
+                    } else {
+                        broadcast("You don't have enough fuel to satisfy them!", COLORS.RED);
+                    }
                 }
-            }
-        ]
-    }
-    ,{
-        id: "faction_miner_distress",
-        title: "Miner Distress",
-        type: "faction",
-        text: "A Miner skiff is under attack by space fauna. Helping them costs `Energy` but boosts Miner reputation significantly.",
-        options: [
+            },
             {
-                command: "hail",
+                command: "run",
                 requiredRoom: "bridge",
-                description: "Hail them on comms",
+                description: "Full burn through the gate (-20 Energy, -5 Fuel, take 10 DMG)",
                 execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "faction_corporate_bidding_war",
-        title: "Corporate Bidding War",
-        type: "faction",
-        text: "Two Corpo ships are fighting over a salvage claim. You can steal the salvage while they fight, angering both.",
-        options: [
-            {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
-                execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "faction_pirate_recruitment",
-        title: "Pirate Recruitment",
-        type: "faction",
-        text: "A pirate captain offers you a lucrative sum of `Credits` to disable a nearby tracking buoy. Lowers Corpo reputation.",
-        options: [
-            {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
-                execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "faction_faction_skirmish",
-        title: "Faction Skirmish",
-        type: "faction",
-        text: "Miners and Pirates are actively interlocked in battle. You can pick a side, or salvage the destroyed ships while dodging crossfire.",
-        options: [
-            {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
-                execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "faction_corpo_vip_escort",
-        title: "Corpo VIP Escort",
-        type: "faction",
-        text: "A damaged Corpo yacht needs a tow. Costs `Fuel`, but rewards massive `Credits` and Corpo reputation.",
-        options: [
-            {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
-                execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "faction_traitorous_miner",
-        title: "Traitorous Miner",
-        type: "faction",
-        text: "A Free Miner offers to sell you stolen Corpo schematics for cheap. Buying them lowers Corpo rep if discovered.",
-        options: [
-            {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
-                execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
+                    ship.energy -= 20;
+                    ship.fuel -= 5;
+                    ship.hull -= 10;
+                    broadcast("You blast through their net. Hull took minor fire. (-20 Energy, -5 Fuel, -10 Hull)", COLORS.YELLOW);
                     ship.currentEncounter = null;
                 }
             }
@@ -868,14 +864,33 @@ const GAME_EVENTS = [
         id: "faction_pirate_s_challenge",
         title: "Pirate's Challenge",
         type: "faction",
-        text: "A pirate challenges you to a duel—no weapons, just a ramming contest. Wager `Credits`. Winner takes all.",
+        text: "A pirate captain challenges you to a duel—no weapons, just a ramming contest. Wager 50 Credits.",
         options: [
             {
-                command: "hail",
-                requiredRoom: "bridge",
-                description: "Hail them on comms",
+                command: "accept",
+                requiredRoom: "engineering",
+                description: "Reinforce hull and RAM! (Risk: 50% win +100c, 50% lose -20 Hull)",
                 execute: (ship, player, broadcast) => {
-                    broadcast("They ignore your hail and jump away.", COLORS.GRAY);
+                    if (ship.credits >= 50) {
+                        ship.credits -= 50;
+                        if (Math.random() > 0.5) {
+                            ship.credits += 150;
+                            broadcast("BAM! You knocked their engine block clean off! You win the pot! (+100 Credits net)", COLORS.GREEN);
+                        } else {
+                            ship.hull -= 20;
+                            broadcast("CRUNCH. Your bow buckled. They laugh as they take your credits. (-50 Cr, -20 Hull)", COLORS.RED);
+                        }
+                        ship.currentEncounter = null;
+                    } else {
+                        broadcast("Not enough credits to wager.", COLORS.RED);
+                    }
+                }
+            },
+            {
+                command: "decline",
+                description: "Ignore the brute",
+                execute: (ship, player, broadcast) => {
+                    broadcast("They call you a coward over open comms, but let you pass.", COLORS.GRAY);
                     ship.currentEncounter = null;
                 }
             }
@@ -885,30 +900,36 @@ const GAME_EVENTS = [
         id: "hazard_solar_flare",
         title: "Solar Flare",
         type: "hazard",
-        text: "A massive wave of radiation is approaching. You must spend `Energy` to reinforce shields, or suffer massive `Hull` damage.",
+        text: "A massive wave of radiation is approaching from the local star. Radiation shields are failing.",
         options: [
             {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                command: "divert",
+                requiredRoom: "engineering",
+                description: "Divert all reactor output to shielding (-30 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
+                    if (ship.energy >= 30) {
+                        ship.energy -= 30;
+                        broadcast("Shields flare brilliant violet, absorbing the radiation wave. (-30 Energy)", COLORS.GREEN);
                     } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
+                        ship.hull -= 40;
+                        broadcast("Insufficient energy! The flare scorches the internals! (-40 Hull)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
+                command: "hide",
+                requiredRoom: "cargo",
+                description: "Use lead-lined cargo pods for shelter (Loss: 10 Scrap)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
+                    if (ship.scrap >= 10) {
+                        ship.scrap -= 10;
+                        ship.hull -= 10;
+                        broadcast("The scrap absorbed most of the radiation, but was vaporized. (-10 Scrap, -10 Hull)", COLORS.YELLOW);
+                    } else {
+                        ship.hull -= 40;
+                        broadcast("Not enough scrap to form a shield! You take the full hit. (-40 Hull)", COLORS.RED);
+                    }
                     ship.currentEncounter = null;
                 }
             }
@@ -918,30 +939,26 @@ const GAME_EVENTS = [
         id: "hazard_ion_storm",
         title: "Ion Storm",
         type: "hazard",
-        text: "Violent electrostatic discharges disable your weapons systems for the next encounter.",
+        text: "Violent electrostatic discharges are playing havoc with the ship's computer.",
         options: [
             {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                command: "ground",
+                requiredRoom: "engineering",
+                description: "Ground the hull through the cargo bay (Risk: -15 Scrap)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
-                    } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
-                    }
+                    const lost = Math.min(ship.scrap, 15);
+                    ship.scrap -= lost;
+                    broadcast(`You grounded the discharge. ${lost} scrap was fused by the heat.`, COLORS.YELLOW);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
+                command: "purge",
+                requiredRoom: "bridge",
+                description: "Purge main capacitors (-20 Energy)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
+                    ship.energy -= 20;
+                    broadcast("Capacitors purged. The storm passes without damaging the hull. (-20 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             }
@@ -951,63 +968,55 @@ const GAME_EVENTS = [
         id: "hazard_micro_meteoroid_shower",
         title: "Micro-Meteoroid Shower",
         type: "hazard",
-        text: "A dense field of tiny rocks pelts the hull. Small `Hull` damage is unavoidable, unless you burn `Fuel` to dodge.",
+        text: "A dense field of tiny rocks pelts the hull like machine-gun fire.",
         options: [
             {
                 command: "evade",
                 requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                description: "Perform high-G maneuvers (-10 Fuel, -5 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
-                    } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
-                    }
+                    ship.fuel -= 10;
+                    ship.energy -= 5;
+                    broadcast("You danced through the debris field unscathed. (-10 Fuel, -5 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "brace",
                 requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
+                description: "Full power to structural integrity (Takes 10 DMG, -10 Energy)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
+                    ship.hull -= 10;
+                    ship.energy -= 10;
+                    broadcast("The hull groans as it takes the hits, but stays intact. (-10 Hull, -10 Energy)", COLORS.YELLOW);
                     ship.currentEncounter = null;
                 }
             }
         ]
     }
     ,{
-        id: "hazard_corrosive_gas_cloud",
-        title: "Corrosive Gas Cloud",
+        id: "hazard_corrosive_gas_nebula",
+        title: "Corrosive Gas Nebula",
         type: "hazard",
-        text: "Flying through this nebula eats away at your armor. Loose 1 `Hull` every action you take until you jump.",
+        text: "The nebula is filled with caustic gasses that eat away at hull plating.",
         options: [
             {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                command: "vent",
+                requiredRoom: "engineering",
+                description: "Vent atmosphere to blow gas away (-10 Fuel, -10 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
-                    } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
-                    }
+                    ship.fuel -= 10;
+                    ship.energy -= 10;
+                    broadcast("You blew the gas clear. Hull preserved. (-10 Fuel, -10 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
+                command: "ignore",
+                description: "Take the corrosion (-20 Hull)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
+                    ship.hull -= 20;
+                    broadcast("The gas pits the armor. Warning: Hull integrity compromised. (-20 Hull)", COLORS.RED);
                     ship.currentEncounter = null;
                 }
             }
@@ -1017,31 +1026,39 @@ const GAME_EVENTS = [
         id: "hazard_gravity_well",
         title: "Gravity Well",
         type: "hazard",
-        text: "A rogue black hole or dense dwarf star pulls you in. Requires extra `Fuel` to jump away.",
+        text: "A rogue singularity is dragging the ship toward the event horizon. Engines are screaming.",
         options: [
             {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                command: "burn",
+                requiredRoom: "engineering",
+                description: "Melt the core for emergency thrust (-25 Fuel)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
+                    if (ship.fuel >= 25) {
+                        ship.fuel -= 25;
+                        broadcast("Emergency burn successful. You escaped the well. (-25 Fuel)", COLORS.GREEN);
+                        ship.currentEncounter = null;
                     } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
+                        broadcast("Not enough fuel to escape! Gravity tears at the hull.", COLORS.RED);
+                        ship.hull -= 30;
+                        ship.currentEncounter = null;
                     }
-                    ship.currentEncounter = null;
                 }
             },
             {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
+                command: "slingshot",
+                requiredRoom: "bridge",
+                description: "Attempt a risky orbital slingshot (-15 Energy, 50% success)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
-                    ship.currentEncounter = null;
+                    ship.energy -= 15;
+                    if (Math.random() > 0.5) {
+                        ship.fuel += 10;
+                        broadcast("PERFECT CALCULATION. You gained momentum! (+10 Fuel, -15 Energy)", COLORS.GREEN);
+                        ship.currentEncounter = null;
+                    } else {
+                        ship.hull -= 25;
+                        broadcast("Calculations were off. You grazed the horizon. (-25 Hull, -15 Energy)", COLORS.RED);
+                        ship.currentEncounter = null;
+                    }
                 }
             }
         ]
@@ -1050,30 +1067,25 @@ const GAME_EVENTS = [
         id: "hazard_space_flora",
         title: "Space Flora",
         type: "hazard",
-        text: "Giant, aggressive vines latch onto your ship. You must use 'attack' to cut them off before they drain your `Energy`.",
+        text: "Giant, bio-luminescent spores have attached to the hull and are draining power.",
         options: [
             {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                command: "shock",
+                requiredRoom: "engineering",
+                description: "Electrify the hull (-20 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
-                    } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
-                    }
+                    ship.energy -= 20;
+                    broadcast("The spores shrivel and drop off. Energy drain stopped. (-20 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
+                command: "scrap",
+                requiredRoom: "cargo",
+                description: "Scrape them off with the grabber arm (-10 Hull)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
+                    ship.hull -= 10;
+                    broadcast("Spore pods crushed, but the bloom damaged the hull. (-10 Hull)", COLORS.YELLOW);
                     ship.currentEncounter = null;
                 }
             }
@@ -1083,129 +1095,36 @@ const GAME_EVENTS = [
         id: "hazard_emp_burst",
         title: "EMP Burst",
         type: "hazard",
-        text: "A localized electromagnetic pulse drains your `Energy` to 0. You are vulnerable until it regenerates.",
+        text: "A natural pulsar discharge is about to hit. It will fry your capacitors.",
         options: [
             {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                command: "ground",
+                requiredRoom: "engineering",
+                description: "Ground systems through the scrap hold (Cost: 15 Scrap)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
+                    if (ship.scrap >= 15) {
+                        ship.scrap -= 15;
+                        broadcast("The electrical surge was absorbed by the scrap pile. (-15 Scrap)", COLORS.GREEN);
+                        ship.currentEncounter = null;
                     } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
+                        ship.energy = 0;
+                        broadcast("Not enough scrap! Capactiors fried! (Energy reset to 0)", COLORS.RED);
+                        ship.currentEncounter = null;
                     }
-                    ship.currentEncounter = null;
                 }
             },
             {
                 command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
-                execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "hazard_thermal_vent__asteroid_",
-        title: "Thermal Vent (Asteroid)",
-        type: "hazard",
-        text: "An asteroid you are navigating violently outgasses. Roll to see if it aids your jump (free `Fuel`) or damages you.",
-        options: [
-            {
-                command: "evade",
                 requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
+                description: "Shut down non-essential systems (-10 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
+                    ship.energy -= 10;
+                    if (Math.random() > 0.3) {
+                         broadcast("Systems rebooted safely after the pulse. (-10 Energy)", COLORS.GREEN);
                     } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
+                        ship.energy = 0;
+                        broadcast("Reboot failed! The pulse caught your systems active! (Energy reset to 0)", COLORS.RED);
                     }
-                    ship.currentEncounter = null;
-                }
-            },
-            {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
-                execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "hazard_radiation_pocket",
-        title: "Radiation Pocket",
-        type: "hazard",
-        text: "Your Max `Hull` is temporarily reduced by 20% due to material degradation until you repair at a station.",
-        options: [
-            {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
-                execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
-                    } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
-                    }
-                    ship.currentEncounter = null;
-                }
-            },
-            {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
-                execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
-                    ship.currentEncounter = null;
-                }
-            }
-        ]
-    }
-    ,{
-        id: "hazard_navigational_deadzone",
-        title: "Navigational Deadzone",
-        type: "hazard",
-        text: "Sensors are completely blinded. You cannot see the stats or type of your next encounter until you engage it.",
-        options: [
-            {
-                command: "evade",
-                requiredRoom: "bridge",
-                description: "Burn fuel to evade (-15 Fuel)",
-                execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 15) {
-                        ship.fuel.current -= 15;
-                        broadcast("Successfully evaded using extra fuel.", COLORS.GREEN);
-                    } else {
-                        ship.hull.current -= 20;
-                        broadcast("Not enough fuel to evade! The hazard damages the hull (-20 Hull).", COLORS.RED);
-                    }
-                    ship.currentEncounter = null;
-                }
-            },
-            {
-                command: "brace",
-                requiredRoom: "engineering",
-                description: "Take the hit (-20 Hull)",
-                execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 20;
-                    broadcast("You take the hit instead of dodging. (-20 Hull)", COLORS.RED);
                     ship.currentEncounter = null;
                 }
             }
@@ -1215,28 +1134,26 @@ const GAME_EVENTS = [
         id: "distress_the_hitchhiker",
         title: "The Hitchhiker",
         type: "distress",
-        text: "A lone astronaut floats in a standard suit. Taking them aboard costs `Energy` for life support, but they might be a skilled mechanic (repairs `Hull`).",
+        text: "A lone survivor in a cryo-pod. They claim to be a master engineer.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "rescue",
+                requiredRoom: "cargo",
+                description: "Bring them aboard (-10 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.energy -= 10;
+                    ship.hull = Math.min(ship.maxHull || 100, ship.hull + 20);
+                    broadcast("The survivor fixed your main couplings! (+20 Hull, -10 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                description: "Leave them to the void",
+                execute: (ship, player, broadcast) => {
+                    broadcast("You leave the pod behind. Silent guilt follows.", COLORS.GRAY);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -1244,28 +1161,28 @@ const GAME_EVENTS = [
         id: "distress_stranded_diplomat",
         title: "Stranded Diplomat",
         type: "distress",
-        text: "A high-ranking official needs transport. High `Credits` reward, but you will be hunted by Pirates for the next 3 jumps.",
+        text: "A luxury shuttle is losing air. The occupant is a high-ranking Corpo VIP.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "rescue",
+                requiredRoom: "cargo",
+                description: "High-priority rescue (-15 Fuel)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.fuel -= 15;
+                    ship.credits += 100;
+                    broadcast("A hefty reward was wired to your account! (+100 Credits, -15 Fuel)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "ransack",
+                requiredRoom: "weapons",
+                description: "Loot the shuttle and leave (30 Scrap)",
+                execute: (ship, player, broadcast) => {
+                    ship.scrap += 30;
+                    broadcast("You took the valuables and left the VIP. Cold-blooded. (+30 Scrap)", COLORS.YELLOW);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -1273,28 +1190,30 @@ const GAME_EVENTS = [
         id: "distress_medical_emergency",
         title: "Medical Emergency",
         type: "distress",
-        text: "A nearby station needs medical supplies immediately. Giving up your medbay reserves (permanently lowers Max `Hull` by 5) gives huge Rep across all factions.",
+        text: "A colony ship has a plague outbreak. They need specialized radiation-stabilized scrap for repairs.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "donate",
+                requiredRoom: "cargo",
+                description: "Donate 25 Scrap (+Rep, -25 Scrap)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
+                    if (ship.scrap >= 25) {
+                        ship.scrap -= 25;
+                        ship.credits += 30;
+                        broadcast("The colony ship survives. A symbol of gratitude was given. (+30 Credits, -25 Scrap)", COLORS.GREEN);
                     } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
+                        broadcast("You don't have enough scrap to help.", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                description: "Too dangerous to dock",
+                execute: (ship, player, broadcast) => {
+                    broadcast("You avoid the contaminated ship.", COLORS.GRAY);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -1302,28 +1221,32 @@ const GAME_EVENTS = [
         id: "distress_the_saboteur",
         title: "The Saboteur",
         type: "distress",
-        text: "You rescue a stranded engineer, but they start secretly draining your `Fuel` every turn. You must spend a turn to 'eject' them.",
+        text: "You found a 'distress' beacon that was actually a trap! A stowaway has disabled your jump drive.",
         options: [
             {
-                command: "assist",
+                command: "flush",
                 requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                description: "Flush the airlocks (-15 Energy, -5 Fuel)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.energy -= 15;
+                    ship.fuel -= 5;
+                    broadcast("Saboteur ejected! Systems restored to jump capacity. (-15 Energy, -5 Fuel)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "bribe",
+                requiredRoom: "bridge",
+                description: "Offer 30 Credits to stop",
+                execute: (ship, player, broadcast) => {
+                    if (ship.credits >= 30) {
+                        ship.credits -= 30;
+                        broadcast("They took the money and escaped in a pod. (-30 Credits)", COLORS.YELLOW);
+                        ship.currentEncounter = null;
+                    } else {
+                        broadcast("They don't take empty promises.", COLORS.RED);
+                    }
+                }
             }
         ]
     }
@@ -1331,28 +1254,32 @@ const GAME_EVENTS = [
         id: "distress_stowaway_fauna",
         title: "Stowaway Fauna",
         type: "distress",
-        text: "A cute alien creature boards your ship. It consumes 1 `Scrap` per turn, but occasionally produces 1 `Energy`.",
+        text: "A swarm of 'Hull-Hoppers' has attached to your ship. They are eating the wiring.",
         options: [
             {
-                command: "assist",
+                command: "vent",
                 requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                description: "Vent the bulkheads (-20 Energy)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.energy -= 20;
+                    broadcast("The critters were blown into space. Damage stopped. (-20 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "trap",
+                requiredRoom: "cargo",
+                description: "Use 10 Scrap as bait to trap them",
+                execute: (ship, player, broadcast) => {
+                    if (ship.scrap >= 10) {
+                        ship.scrap -= 10;
+                        ship.credits += 25;
+                        broadcast("Trapped and sold to a collector. (+25 Credits, -10 Scrap)", COLORS.GREEN);
+                        ship.currentEncounter = null;
+                    } else {
+                        broadcast("Not enough scrap for bait!", COLORS.RED);
+                    }
+                }
             }
         ]
     }
@@ -1360,28 +1287,30 @@ const GAME_EVENTS = [
         id: "distress_cultist_caravan",
         title: "Cultist Caravan",
         type: "distress",
-        text: "A group of robed figures asks you to tow them into the heart of a dangerous anomaly. High risk, unknown bizarre reward.",
+        text: "A ship of the 'Order of the Void' asks for a fuel donation to reach the Great Rift.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "donate",
+                requiredRoom: "cargo",
+                description: "Donate 15 Fuel (-15 Fuel)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
+                    if (ship.fuel >= 15) {
+                        ship.fuel -= 15;
+                        ship.hull = Math.min(ship.maxHull || 100, (ship.hull || 100) + 40);
+                        broadcast("They bless your ship. Hull plates glow with peace. (+40 Hull, -15 Fuel)", COLORS.GREEN);
                     } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
+                        broadcast("Not enough fuel.", COLORS.RED);
                     }
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                description: "Keep your fuel",
+                execute: (ship, player, broadcast) => {
+                    broadcast("The cultists chant is lost in the static.", COLORS.GRAY);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -1389,28 +1318,28 @@ const GAME_EVENTS = [
         id: "distress_ai_core_transfer",
         title: "AI Core Transfer",
         type: "distress",
-        text: "An unstable AI begs to be downloaded into your ship's mainframe to escape Corpo Sec. Doing so boosts your 'attack' damage but risks random command misfires.",
+        text: "A damaged military core needs an emergency upload to survive. It will take up ship CPU.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "upload",
+                requiredRoom: "bridge",
+                description: "Accept the upload (Permanent -5 Energy Regen, +10 Weapon DMG)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.energyRegen = (ship.energyRegen || 0) - 0.2; // 0.2 units per tick is significant
+                    ship.dmgFlat = (ship.dmgFlat || 0) + 10;
+                    broadcast("The AI integrates. Power draw is high, but aim is lethal. (-Regen, +10 DMG)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "wipe",
+                requiredRoom: "engineering",
+                description: "Wipe for scrap (30 Scrap)",
+                execute: (ship, player, broadcast) => {
+                    ship.scrap += 30;
+                    broadcast("Core purged. Raw materials recovered. (+30 Scrap)", COLORS.GREEN);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -1418,28 +1347,26 @@ const GAME_EVENTS = [
         id: "distress_phantom_signal",
         title: "Phantom Signal",
         type: "distress",
-        text: "A distress call that repeats perfectly every 3 seconds. It's a trap set by automated defense drones. (Forced Combat).",
+        text: "A signal that sounds like your own ship's distress call... from the future.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "analyze",
+                requiredRoom: "bridge",
+                description: "Analyze the signal (-10 Energy, +Rep)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.energy -= 10;
+                    ship.credits += 50;
+                    broadcast("Navigational anomalies identified. Data sold for 50 Credits! (-10 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
                 command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                description: "Tear down the antenna",
+                execute: (ship, player, broadcast) => {
+                    broadcast("You refuse to hear your own ghost.", COLORS.GRAY);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }
@@ -1447,28 +1374,28 @@ const GAME_EVENTS = [
         id: "distress_the_old_captain",
         title: "The Old Captain",
         type: "distress",
-        text: "You find a lifepod containing a retired tugboat captain. They teach you a secret maneuver, permanently reducing the `Fuel` cost of jumps to 8.",
+        text: "An ancient tugboat captain is drifting in a suit. He offers wisdom for a ride to the next station.",
         options: [
             {
-                command: "assist",
-                requiredRoom: "engineering",
-                description: "Provide assistance (-10 Fuel, -10 Energy)",
+                command: "welcome",
+                requiredRoom: "cargo",
+                description: "Welcome aboard (-10 Fuel)",
                 execute: (ship, player, broadcast) => {
-                    if (ship.fuel.current >= 10 && ship.energy.current >= 10) {
-                        ship.fuel.current -= 10;
-                        ship.energy.current -= 10;
-                        ship.credits += 50;
-                        broadcast("You assisted and were rewarded 50 Credits!", COLORS.GREEN);
-                    } else {
-                        broadcast("You lack the resources to assist.", COLORS.RED);
-                    }
+                    ship.fuel -= 10;
+                    // Reducing jump cost isn't trivial to implement here without changing jump command, 
+                    // so we'll give a huge fuel reserve instead.
+                    ship.fuel += 40;
+                    broadcast("The Captain shows you fuel-efficient routes! (+40 Fuel net gain 30)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
             },
             {
-                command: "ignore",
-                description: "Ignore distress call",
-                execute: (ship, player, broadcast) => { broadcast("You cold-heartedly ignore the signal.", COLORS.GRAY); ship.currentEncounter = null; }
+                command: "refuse",
+                description: "No room for passengers",
+                execute: (ship, player, broadcast) => {
+                    broadcast("The old man's signal fades into the distance.", COLORS.GRAY);
+                    ship.currentEncounter = null;
+                }
             }
         ]
     }

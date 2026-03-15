@@ -1245,21 +1245,41 @@ export class GameServer {
                     this.send(ws, 'log', { message: "ERROR: NO ASTEROID.", color: '#FF0000' });
                 }
             } else if (mainCmd === 'refine') {
-                if (ship.scrap < 10) { this.send(ws, 'log', { message: "ERROR: REQUIRES 10 SCRAP.", color: '#FF0000' }); return; }
+                const station = this.stations[ship.sector];
                 const targetRes = args[1]?.toLowerCase();
-                if (targetRes === 'fuel') {
-                    ship.scrap -= 10;
-                    ship.fuel += 5;
-                    broadcast(`[CARGO] 10 Scrap refined into 5 Jump Fuel.`, '#00FF00');
-                } else if (targetRes === 'energy') {
-                    ship.scrap -= 10;
-                    ship.energy = Math.min(ship.maxEnergy, ship.energy + 20);
-                    broadcast(`[CARGO] 10 Scrap refined into 20 Energy cells.`, '#00FF00');
+                
+                if (station) {
+                    if (targetRes === 'credits') {
+                        if (ship.fuel < 10) { this.send(ws, 'log', { message: "ERROR: REQUIRES 10 FUEL.", color: '#FF0000' }); return; }
+                        ship.fuel -= 10;
+                        ship.credits += 25;
+                        broadcast(`[STATION] Refined 10 Fuel into 25 Credits.`, '#00FF00');
+                    } else if (targetRes === 'scrap') {
+                        if (ship.energy < 20) { this.send(ws, 'log', { message: "ERROR: REQUIRES 20 ENERGY.", color: '#FF0000' }); return; }
+                        ship.energy -= 20;
+                        ship.scrap += 10;
+                        broadcast(`[STATION] Refined 20 Energy into 10 Scrap.`, '#00FF00');
+                    } else {
+                        this.send(ws, 'log', { message: "ERROR: Station refine options: 'refine credits', 'refine scrap'", color: '#FF0000' });
+                        return;
+                    }
                 } else {
-                    this.send(ws, 'log', { message: "ERROR: refine <fuel|energy>", color: '#FF0000' });
-                    return;
+                    if (ship.scrap < 10) { this.send(ws, 'log', { message: "ERROR: REQUIRES 10 SCRAP.", color: '#FF0000' }); return; }
+                    if (targetRes === 'fuel') {
+                        ship.scrap -= 10;
+                        ship.fuel += 5;
+                        broadcast(`[CARGO] 10 Scrap refined into 5 Jump Fuel.`, '#00FF00');
+                    } else if (targetRes === 'energy') {
+                        ship.scrap -= 10;
+                        ship.energy = Math.min(ship.maxEnergy, ship.energy + 20);
+                        broadcast(`[CARGO] 10 Scrap refined into 20 Energy cells.`, '#00FF00');
+                    } else {
+                        this.send(ws, 'log', { message: "ERROR: Cargo refine options: 'refine fuel', 'refine energy'", color: '#FF0000' });
+                        return;
+                    }
                 }
                 ship.cooldowns['Cargo Bay'] = 4;
+                await this.saveState();
             } else if (mainCmd === 'airlock') {
                 ship.cooldowns['Cargo Bay'] = 5;
                 if (ship.currentEncounter && ship.currentEncounter.hp <= 0 && ship.currentEncounter.type === 'ship') {
@@ -1382,7 +1402,8 @@ export class GameServer {
             } else if (player.room === ROOMS['engineering']) {
                 this.send(ws, 'log', { message: `> ENGINEERING: repair [r], reroute [rr], patch [p], overclock [ov], siphon [sn], vent [v]`, color: '#FFA500' });
             }
-            this.send(ws, 'log', { message: `> SHIP: scan [s], hail [hl], dock [dk], buy [b], inventory [i/inv]`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> STATION: dock [dk], buy [b], sell [sl], refine [rf]`, color: '#00FF00' });
+            this.send(ws, 'log', { message: `> SHIP: inventory [i/inv]`, color: '#FFFFFF' });
         } else if (mainCmd === 'dock') {
             const station = this.stations[ship.sector];
             if (!station) {
@@ -1396,7 +1417,31 @@ export class GameServer {
                 const u = UPGRADES[id];
                 this.send(ws, 'log', { message: `[${id}] ${u.name} - ${u.price}c: ${u.desc}`, color: '#FFFFFF' });
             });
+            this.send(ws, 'log', { message: `--- STATION SERVICES ---`, color: '#00FFFF' });
+            this.send(ws, 'log', { message: `> 'sell <amount>': Sell scrap for 4 Credits each.`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'refine credits': Refine 10 Fuel into 25 Credits.`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'refine scrap': Refine 20 Energy into 10 Scrap.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `Type 'buy <id>' to purchase.`, color: '#AAAAAA' });
+        } else if (mainCmd === 'sell') {
+            const station = this.stations[ship.sector];
+            if (!station) {
+                this.send(ws, 'log', { message: "ERROR: MUST BE DOCKED AT A STATION TO SELL.", color: '#FF0000' });
+                return;
+            }
+            const amount = parseInt(args[1]);
+            if (isNaN(amount) || amount <= 0) {
+                this.send(ws, 'log', { message: "ERROR: Usage: 'sell <amount>'", color: '#FF0000' });
+                return;
+            }
+            if (ship.scrap < amount) {
+                this.send(ws, 'log', { message: `ERROR: ONLY HAVE ${ship.scrap} SCRAP.`, color: '#FF0000' });
+                return;
+            }
+            const creditsGained = amount * 4;
+            ship.scrap -= amount;
+            ship.credits += creditsGained;
+            broadcast(`[STATION] Sold ${amount} Scrap for ${creditsGained} Credits.`, '#00FF00');
+            await this.saveState();
         } else if (mainCmd === 'look') {
             const target = args.length > 1 ? args.slice(1).join(' ').toLowerCase() : null;
             
