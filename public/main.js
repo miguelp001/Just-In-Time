@@ -123,10 +123,11 @@ class MainScene extends Phaser.Scene {
                 event.preventDefault();
             }
 
-            if (event.keyCode === 8 && this.currentInput.length > 0) {
-                // Backspace
-                this.currentInput = this.currentInput.slice(0, -1);
-                if (this.mobileInput) this.mobileInput.value = this.currentInput;
+            if (event.keyCode === 8) {
+                // Backspace - Phaser handles it for the game's internal state
+                if (this.currentInput.length > 0) {
+                    this.currentInput = this.currentInput.slice(0, -1);
+                }
             } else if (event.keyCode === 13) {
                 // Enter
                 if (this.currentInput.trim().length > 0) {
@@ -134,11 +135,9 @@ class MainScene extends Phaser.Scene {
                     this.currentInput = "";
                     if (this.mobileInput) this.mobileInput.value = "";
                 }
-            } else if (event.keyCode === 32 || (event.keyCode >= 48 && event.keyCode <= 90) || event.keyCode === 189 || event.keyCode === 173 || event.keyCode === 190) {
-                // Alphanumeric + Space + Hyphen + Dot
-                this.currentInput += event.key.toLowerCase();
-                if (this.mobileInput) this.mobileInput.value = this.currentInput;
             }
+            // Alphanumeric input is now handled entirely by the mobileInput 'input' listener
+            // to avoid character doubling.
             if (!this.gameState.isGameOver) {
                  this.updatePrompt();
             }

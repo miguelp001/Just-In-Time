@@ -261,6 +261,27 @@ export class GameServer {
                 this.generateGalaxy();
                 await this.state.storage.put("galaxy", this.galaxy);
                 await this.state.storage.put("stations", this.stations);
+            } else if (Object.keys(this.stations).length < 100) {
+                // Migration: Fill up to 100 stations
+                const upgradeIds = Object.keys(UPGRADES);
+                let currentCount = Object.keys(this.stations).length;
+                while (currentCount < 100) {
+                    const sector = Math.floor(Math.random() * NUM_SECTORS) + 1;
+                    if (!this.stations[sector]) {
+                        const stock = [];
+                        const tempIds = [...upgradeIds];
+                        for (let j = 0; j < 5; j++) {
+                            const idx = Math.floor(Math.random() * tempIds.length);
+                            stock.push(tempIds.splice(idx, 1)[0]);
+                        }
+                        this.stations[sector] = {
+                            name: `Station ${String.fromCharCode(65 + (currentCount % 26))}-${Math.floor(Math.random() * 900) + 100}`,
+                            stock: stock
+                        };
+                        currentCount++;
+                    }
+                }
+                await this.state.storage.put("stations", this.stations);
             }
             if (Object.keys(this.npcs).length === 0) {
                 this.setupNPCs();
@@ -279,19 +300,22 @@ export class GameServer {
         
         // --- PHASE 19: Generate Stations ---
         const upgradeIds = Object.keys(UPGRADES);
-        for (let i = 0; i < 20; i++) { // 20 Stations across 200 sectors
+        let stationCount = 0;
+        const TARGET_STATIONS = 100;
+        while (stationCount < TARGET_STATIONS) {
             const sector = Math.floor(Math.random() * NUM_SECTORS) + 1;
             if (!this.stations[sector]) {
                 const stock = [];
                 const tempIds = [...upgradeIds];
-                for (let j = 0; j < 10; j++) {
+                for (let j = 0; j < 5; j++) {
                     const idx = Math.floor(Math.random() * tempIds.length);
                     stock.push(tempIds.splice(idx, 1)[0]);
                 }
                 this.stations[sector] = {
-                    name: `Station ${String.fromCharCode(65 + i)}-${Math.floor(Math.random() * 900) + 100}`,
+                    name: `Station ${String.fromCharCode(65 + (stationCount % 26))}-${Math.floor(Math.random() * 900) + 100}`,
                     stock: stock
                 };
+                stationCount++;
             }
         }
 
@@ -573,7 +597,7 @@ export class GameServer {
             'a': 'attack', 't': 'target', 'e': 'emp', 'cf': 'chaff', 'oc': 'overcharge', 'fk': 'flak',
             'r': 'repair', 'p': 'patch', 'rr': 'reroute', 'ov': 'overclock', 'sn': 'siphon', 'v': 'vent',
             'mn': 'mine', 'rf': 'refine', 'al': 'airlock', 'pb': 'probe', 'dr': 'drone', 'hd': 'hide',
-            'dk': 'dock', 'b': 'buy', 'i': 'inventory', 'inv': 'inventory'
+            'dk': 'dock', 'b': 'buy', 'rl': 'refuel', 'i': 'inventory', 'inv': 'inventory'
         };
         if (ALIAS_MAP[mainCmd]) mainCmd = ALIAS_MAP[mainCmd];
 
@@ -817,13 +841,13 @@ export class GameServer {
                 this.send(ws, 'log', { message: "ERROR: SCANNERS ACCESSED FROM BRIDGE ONLY.", color: '#FF0000' });
                 return;
             }
+            const sectorData = this.galaxy[ship.sector];
             if (args[1] === 'deep') {
                 if (ship.energy < 5) {
                     this.send(ws, 'log', { message: "ERROR: INSUFFICIENT ENERGY FOR DEEP SCAN.", color: '#FF0000' });
                     return;
                 }
                 ship.energy -= 5;
-                const sectorData = this.galaxy[ship.sector];
                 this.send(ws, 'log', { message: `--- DEEP SPACE SCAN ---`, color: '#00FFFF' });
                 this.send(ws, 'log', { message: `Adjacent Sectors analyzed.`, color: '#FFFFFF' });
                 
@@ -839,18 +863,22 @@ export class GameServer {
 
                 broadcast(`[BRIDGE] ${player.name} initiated a Deep Space Scan. (-5 Energy)`, '#00FFFF');
             } else {
-                const sectorData = this.galaxy[ship.sector];
                 this.send(ws, 'log', { message: `--- LONG RANGE SCANNERS ---`, color: '#FFFF00' });
                 this.send(ws, 'log', { message: `Current Sector: ${ship.sector}`, color: '#FFFFFF' });
                 this.send(ws, 'log', { message: `Linked Jump Points: ${sectorData.links.join(', ')}`, color: '#00FFFF' });
                 
                 const localNpcs = Object.values(this.npcs).filter(n => n.sector === ship.sector && n.hp > 0);
+                const station = this.stations[ship.sector];
+                if (station) {
+                    this.send(ws, 'log', { message: `[!!!] STATION DETECTED: ${station.name}`, color: '#00FF00' });
+                }
                 if (localNpcs.length > 0) {
                     this.send(ws, 'log', { message: `--- LOCAL ENTITIES DETECTED ---`, color: '#FF00FF' });
                     localNpcs.forEach(n => {
                         this.send(ws, 'log', { message: `- ${n.name} [${n.type.toUpperCase()}]`, color: '#FFFFFF' });
                     });
                 }
+                this.send(ws, 'update_sector', { ...sectorData, station: station });
             }
         } else if (mainCmd === 'hail') {
             if (player.room !== ROOMS['bridge']) {
@@ -965,6 +993,9 @@ export class GameServer {
                                 this.send(s.ws, 'update_ui', { sector: ship.sector });
                                 this.send(s.ws, 'log', { message: `JUMP SUCCESSFUL. Sector ${destSector}.`, color: '#00FF00' });
                                 this.send(s.ws, 'log', { message: SECTOR_FLAVOR[Math.floor(Math.random() * SECTOR_FLAVOR.length)], color: '#AAAAAA' });
+                                if (this.stations[destSector]) {
+                                    this.send(s.ws, 'log', { message: `[!!!] STATION DETECTED: ${this.stations[destSector].name}`, color: '#00FF00' });
+                                }
                             }
                         });
                         
@@ -1380,18 +1411,6 @@ export class GameServer {
                 player.name = newName;
                 broadcast(`[SYS] ${oldName} is now known as ${newName}.`, '#00FF00');
             }
-        } else if (mainCmd === 'scan') {
-            const sectorData = this.galaxy[ship.sector];
-            const station = this.stations[ship.sector];
-            this.send(ws, 'log', { message: `--- LONG RANGE SENSOR LOG ---`, color: '#00FFFF' });
-            this.send(ws, 'log', { message: `SECTOR: ${sectorData.id}`, color: '#FFFFFF' });
-            this.send(ws, 'log', { message: `HYPERLANES: ${sectorData.links.join(', ')}`, color: '#FFFFFF' });
-            if (station) {
-                this.send(ws, 'log', { message: `[!!!] STATION DETECTED: ${station.name}`, color: '#00FF00' });
-            }
-            this.send(ws, 'log', { message: `SIGNATURES: ${sectorData.encounterType ? sectorData.encounterType.toUpperCase() : 'CLEAR'}`, color: '#FFFFFF' });
-            
-            this.send(ws, 'update_sector', { ...sectorData, station: station });
         } else if (mainCmd === 'help') {
             this.send(ws, 'log', { message: `--- COMMAND PROTOCOLS ---`, color: '#FFFF00' });
             this.send(ws, 'log', { message: `> GLOBAL: move [m], who [w], rename ship [rn], look [l], help [h/?]`, color: '#FFFFFF' });
@@ -1420,10 +1439,35 @@ export class GameServer {
                 this.send(ws, 'log', { message: `[${id}] ${u.name} - ${u.price}c: ${u.desc}`, color: '#FFFFFF' });
             });
             this.send(ws, 'log', { message: `--- STATION SERVICES ---`, color: '#00FFFF' });
+            this.send(ws, 'log', { message: `> 'refuel <amount>': Buy Fuel for 2 Credits each.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'sell <amount>': Sell scrap for 4 Credits each.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'refine credits': Refine 10 Fuel into 25 Credits.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'refine scrap': Refine 20 Energy into 10 Scrap.`, color: '#FFFFFF' });
-            this.send(ws, 'log', { message: `Type 'buy <id>' to purchase.`, color: '#AAAAAA' });
+            this.send(ws, 'log', { message: `Type 'buy <id>' or 'refuel <amount>' to proceed.`, color: '#AAAAAA' });
+        } else if (mainCmd === 'refuel') {
+            const station = this.stations[ship.sector];
+            if (!station) {
+                this.send(ws, 'log', { message: "ERROR: MUST BE DOCKED AT A STATION TO REFUEL.", color: '#FF0000' });
+                return;
+            }
+            const amount = parseInt(args[1]);
+            if (isNaN(amount) || amount <= 0) {
+                this.send(ws, 'log', { message: "ERROR: Usage: 'refuel <amount>'", color: '#FF0000' });
+                return;
+            }
+            const cost = amount * 2;
+            if (ship.credits < cost) {
+                this.send(ws, 'log', { message: `ERROR: INSUFFICIENT CREDITS. REQUIRED: ${cost}`, color: '#FF0000' });
+                return;
+            }
+            if (ship.fuel + amount > 100) {
+                this.send(ws, 'log', { message: `ERROR: TANK CAPACITY EXCEEDED. MAX 100 FUEL.`, color: '#FF0000' });
+                return;
+            }
+            ship.credits -= cost;
+            ship.fuel += amount;
+            broadcast(`[STATION] Refueled ${amount} units for ${cost} Credits.`, '#00FF00');
+            await this.saveState();
         } else if (mainCmd === 'sell') {
             const station = this.stations[ship.sector];
             if (!station) {
@@ -1458,6 +1502,9 @@ export class GameServer {
                 if (player.room === ROOMS['bridge']) {
                     const sectorDesc = SECTOR_FLAVOR[ship.sector % SECTOR_FLAVOR.length];
                     desc += `\n\nTHROUGH THE VIEWPORT: ${sectorDesc}`;
+                    if (this.stations[ship.sector]) {
+                        desc += `\n\nA massive space station orbits here: ${this.stations[ship.sector].name}. Type 'dock' to approach.`;
+                    }
                 }
                 this.send(ws, 'log', { message: `--- ${player.room.toUpperCase()} ---`, color: '#FFFF00' });
                 this.send(ws, 'log', { message: desc, color: '#FFFFFF' });
