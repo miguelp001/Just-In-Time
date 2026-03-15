@@ -112,6 +112,9 @@ class MainScene extends Phaser.Scene {
         // --- Input Handling ---
         this.currentInput = "";
         
+        // --- Mobile Input Support ---
+        const mobileInput = document.getElementById('mobile-input');
+        
         this.input.keyboard.on('keydown', (event) => {
             // Prevent default browser actions for space and backspace
             if (event.keyCode === 32 || event.keyCode === 8) {
@@ -121,20 +124,45 @@ class MainScene extends Phaser.Scene {
             if (event.keyCode === 8 && this.currentInput.length > 0) {
                 // Backspace
                 this.currentInput = this.currentInput.slice(0, -1);
+                if (mobileInput) mobileInput.value = this.currentInput;
             } else if (event.keyCode === 13) {
                 // Enter
                 if (this.currentInput.trim().length > 0) {
                     this.processCommand(this.currentInput);
                     this.currentInput = "";
+                    if (mobileInput) mobileInput.value = "";
                 }
             } else if (event.keyCode === 32 || (event.keyCode >= 48 && event.keyCode <= 90) || event.keyCode === 189 || event.keyCode === 173 || event.keyCode === 190) {
                 // Alphanumeric + Space + Hyphen + Dot
                 this.currentInput += event.key.toLowerCase();
+                if (mobileInput) mobileInput.value = this.currentInput;
             }
             if (!this.gameState.isGameOver) {
                  this.updatePrompt();
             }
         });
+
+        if (mobileInput) {
+            mobileInput.addEventListener('input', (event) => {
+                this.currentInput = event.target.value;
+                if (!this.gameState.isGameOver) {
+                    this.updatePrompt();
+                }
+            });
+            
+            mobileInput.addEventListener('keydown', (event) => {
+                if (event.keyCode === 13) {
+                    if (this.currentInput.trim().length > 0) {
+                        this.processCommand(this.currentInput);
+                        this.currentInput = "";
+                        mobileInput.value = "";
+                        if (!this.gameState.isGameOver) {
+                            this.updatePrompt();
+                        }
+                    }
+                }
+            });
+        }
 
         // --- Apply CRT Shader ---
         this.cameras.main.setPostPipeline(CustomPipeline);
@@ -332,9 +360,12 @@ class MainScene extends Phaser.Scene {
         this.add.text(width - 40, y - 50, "KBD", { fontSize: '12px', color: '#FFFF00' }).setOrigin(0.5);
         
         kbBtn.on('pointerdown', () => {
-            // Trigger browser virtual keyboard by focusing a hidden input if needed
-            // For now, let's just log it
-            this.logMessage("Manual Keyboard Input Requested.", COLORS.YELLOW);
+            if (mobileInput) {
+                mobileInput.focus();
+                this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
+            } else {
+                this.logMessage("ERROR: Input proxy missing.", COLORS.RED);
+            }
         });
     }
 
