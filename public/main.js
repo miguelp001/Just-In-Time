@@ -13,16 +13,25 @@ class MainScene extends Phaser.Scene {
 
     create() {
         console.log("Phaser: create() starting...");
+        
+        // --- Device Detection ---
+        this.isMobile = !this.sys.game.device.os.desktop || window.innerWidth < 800;
+        this.isPortrait = window.innerHeight > window.innerWidth;
+
         // Get game dimensions
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Base text configuration
+        // Base text configuration - Scale for mobile
+        const baseFontSize = this.isMobile ? '16px' : '18px';
+        const headerFontSize = this.isMobile ? '20px' : '22px';
+
         this.baseTextConfig = {
             fontFamily: 'Courier New, monospace',
-            fontSize: '18px',
+            fontSize: baseFontSize,
             color: COLORS.WHITE,
-            align: 'left'
+            align: 'left',
+            wordWrap: { width: width * (this.isPortrait ? 0.9 : 0.7), useAdvancedWrap: true }
         };
 
         // --- Game State ---
@@ -33,18 +42,14 @@ class MainScene extends Phaser.Scene {
             scrap: 15,
             credits: 200,
             location: 'Bridge',
-            
-            // Encounter State
-            currentEncounter: null, // e.g., { type: 'asteroid', hp: 50 } or { type: 'ship', faction: 'miners', hp: 80, name: 'Pirate Drone' }
-            currentEvent: null, // Holds the active event data from events.js
+            currentEncounter: null,
+            currentEvent: null,
             inCombat: false,
             isGameOver: false,
-            
-            // Factions (Reputation: -100 to 100. < -20 is hostile, > 20 is friendly)
             factions: {
-                pirates: -50,   // Scrap Pirates (always hostile by default)
-                miners: 0,      // Free Miners
-                corps: 10       // Corporate Sec
+                pirates: -50,
+                miners: 0,
+                corps: 10
             }
         };
 
@@ -55,44 +60,55 @@ class MainScene extends Phaser.Scene {
             'engineering': 'Engineering'
         };
 
+        // --- Layout Constants ---
+        const margin = 20;
+        const headerH = this.isMobile ? 80 : 50;
+        const footerH = this.isMobile ? 120 : 60; // Extra space for mobile buttons
+        
         // --- Scaffold UI Layout ---
         
         // Header
-        this.headerText = this.add.text(20, 20, "", { ...this.baseTextConfig, color: COLORS.GREEN, fontStyle: 'bold' });
+        this.headerText = this.add.text(margin, margin, "", { ...this.baseTextConfig, fontSize: headerFontSize, color: COLORS.GREEN, fontStyle: 'bold' });
         this.updateHeader();
-        this.add.line(0, 0, 20, 50, width - 20, 50, 0x00FF00).setOrigin(0,0);
+        this.add.line(0, 0, margin, headerH, width - margin, headerH, 0x00FF00).setOrigin(0,0);
 
-        // Sidebar (Right)
-        const sidebarX = width * 0.75;
-        this.add.line(0, 0, sidebarX, 50, sidebarX, height - 60, 0x00FF00).setOrigin(0,0);
-        
-        this.sidebarTitle = this.add.text(sidebarX + 20, 60, "> CURRENT LOCATION:", { ...this.baseTextConfig, color: COLORS.CYAN });
-        this.sidebarLocation = this.add.text(sidebarX + 20, 90, "[B] Bridge", this.baseTextConfig);
-        
-        this.sidebarSensorsTitle = this.add.text(sidebarX + 20, 140, "> SCANNERS:", { ...this.baseTextConfig, color: COLORS.CYAN });
-        this.sidebarSensors = this.add.text(sidebarX + 20, 170, 
-            `${SYMBOLS.ASTEROID} Rich Ore Vein\n${SYMBOLS.UNKNOWN} Weak Signal\n\n\n${SYMBOLS.ALERT} PROXIMITY ALERT!`, 
-            { ...this.baseTextConfig, color: COLORS.YELLOW }
-        );
+        if (!this.isPortrait) {
+            // Desktop/Landscape Sidebar (Right)
+            const sidebarX = width * 0.75;
+            this.add.line(0, 0, sidebarX, headerH, sidebarX, height - footerH, 0x00FF00).setOrigin(0,0);
+            
+            this.sidebarTitle = this.add.text(sidebarX + 20, 60, "> LOCATION:", { ...this.baseTextConfig, color: COLORS.CYAN });
+            this.sidebarLocation = this.add.text(sidebarX + 20, 90, "[B] Bridge", this.baseTextConfig);
+            
+            this.sidebarSensorsTitle = this.add.text(sidebarX + 20, 140, "> SCANNERS:", { ...this.baseTextConfig, color: COLORS.CYAN });
+            this.sidebarSensors = this.add.text(sidebarX + 20, 170, "No signals.", { ...this.baseTextConfig, color: COLORS.YELLOW });
+        } else {
+            // Mobile Portrait Summary (Top/Mid)
+            // We'll overlay or show them in the log for now, or a compact bar.
+            this.sidebarLocation = this.add.text(width - 120, margin, "[B] Bridge", { ...this.baseTextConfig, fontSize: '14px' });
+            // Scanners will be shown as log messages in mobile mode for better flow
+        }
 
         // Main View (Left/Center)
-        this.mainLogTitle = this.add.text(20, 60, "SYS_LOG_SEC_9:", { ...this.baseTextConfig, color: COLORS.GRAY });
+        this.mainLogTitle = this.add.text(margin, headerH + 10, "SYS_LOG_SEC_9:", { ...this.baseTextConfig, fontSize: '14px', color: COLORS.GRAY });
         
-        this.logLines = []; // Array to store Text objects
+        this.logContainer = this.add.container(margin, headerH + 40);
+        this.logLines = []; 
         
         // Initial Logs
         this.logMessage("Boot sequence complete.", COLORS.WHITE);
-        this.logMessage("Establishing connection to navigation buoys...", COLORS.WHITE);
-        this.logMessage("Connection failed. Spiral Nebula interference detected.", COLORS.RED);
-        this.logMessage("Captain, we are currently adrift in an uncharted sector.", COLORS.WHITE);
-        this.logMessage("Sensors detect a faint distress signal nearby, as well as several mineral deposits.", COLORS.YELLOW);
-        this.logMessage("TACTICAL SYSTEM: Turn-based mode active. Time only advances when you issue a command.", COLORS.CYAN);
-        this.logMessage("Awaiting orders. Type 'help' for commands.", COLORS.WHITE);
+        this.logMessage("Uplink secured. Ready.", COLORS.GREEN);
+        this.logMessage("Awaiting orders. Type 'help'.", COLORS.WHITE);
 
-        // Footer (Command Prompt)
-        this.add.line(0, 0, 20, height - 60, width - 20, height - 60, 0x00FF00).setOrigin(0,0);
-        this.promptText = this.add.text(20, height - 40, "C:\\TUGBOAT\\CMD >_ ", { ...this.baseTextConfig, color: COLORS.GREEN, fontStyle: 'bold' });
+        // Footer (Command Prompt & Mobile Buttons)
+        const promptY = height - footerH + 10;
+        this.add.line(0, 0, margin, height - footerH, width - margin, height - footerH, 0x00FF00).setOrigin(0,0);
+        this.promptText = this.add.text(margin, promptY, "C:\\TGB\\CMD >_ ", { ...this.baseTextConfig, color: COLORS.GREEN, fontStyle: 'bold' });
         
+        if (this.isMobile) {
+            this.createMobileButtons(height - 40, width);
+        }
+
         // --- Input Handling ---
         this.currentInput = "";
         
@@ -215,18 +231,25 @@ class MainScene extends Phaser.Scene {
         if (g.cooldowns) {
             for (const [room, time] of Object.entries(g.cooldowns)) {
                 if (time > 0) {
-                    cooldownsStr += ` | [! ${room.toUpperCase()} CD: ${time}s]`;
+                    cooldownsStr += ` [! ${room.toUpperCase().slice(0,3)} CD:${time}s]`;
                 }
             }
         }
 
-        this.headerText.setText(
-            `${SYMBOLS.HULL} Hull: ${g.hull || 0}/100 | ` +
-            `${SYMBOLS.FUEL} Fuel: ${g.fuel || 0}/100 | ` +
-            `${SYMBOLS.ENERGY} Energy: ${g.energy || 0}/50 | ` +
-            `${SYMBOLS.SCRAP} Scrap: ${g.scrap || 0} | ` +
-            `[ SECTOR: ${g.sector || 'UNKNOWN'} ]${cooldownsStr}`
-        );
+        if (this.isMobile) {
+            this.headerText.setText(
+                `${SYMBOLS.HULL}${g.hull.current || 0} ${SYMBOLS.FUEL}${g.fuel.current || 0} ${SYMBOLS.ENERGY}${g.energy.current || 0} ${SYMBOLS.SCRAP}${g.scrap || 0}\n` +
+                `[SEC: ${g.sector || 'UNC'}]${cooldownsStr}`
+            );
+        } else {
+            this.headerText.setText(
+                `${SYMBOLS.HULL} Hull: ${g.hull.current || 0}/100 | ` +
+                `${SYMBOLS.FUEL} Fuel: ${g.fuel.current || 0}/100 | ` +
+                `${SYMBOLS.ENERGY} Energy: ${g.energy.current || 0}/50 | ` +
+                `${SYMBOLS.SCRAP} Scrap: ${g.scrap || 0} | ` +
+                `[ SECTOR: ${g.sector || 'UNKNOWN'} ]${cooldownsStr}`
+            );
+        }
     }
 
     updatePrompt() {
@@ -234,29 +257,62 @@ class MainScene extends Phaser.Scene {
     }
 
     alignLog() {
-        let currentY = this.cameras.main.height - 80;
-        // Start from newest command, push them up
+        const footerH = this.isMobile ? 120 : 60;
+        let currentY = this.cameras.main.height - footerH - 10;
+        const topLimit = (this.isMobile ? 80 : 50) + 40;
+
         for (let i = this.logLines.length - 1; i >= 0; i--) {
-            this.logLines[i].setY(currentY - this.logLines[i].displayHeight);
-            currentY -= this.logLines[i].displayHeight + 4;
-        }
-        
-        // Remove lines that go past the header area
-        while(this.logLines.length > 0 && this.logLines[0].y < 80) {
-             const old = this.logLines.shift();
-             old.destroy();
+            const line = this.logLines[i];
+            line.setX(20);
+            line.setY(currentY - line.displayHeight);
+            currentY -= line.displayHeight + 6;
+
+            if (currentY < topLimit) {
+                // Destroy hidden lines
+                const removed = this.logLines.splice(0, i + 1);
+                removed.forEach(r => r.destroy());
+                break;
+            }
         }
     }
 
-    logMessage(text, color = COLORS.WHITE) {
-        const sidebarX = this.cameras.main.width * 0.75;
-        const newText = this.add.text(20, 0, "> " + text, { 
-            ...this.baseTextConfig, 
-            color: color, 
-            wordWrap: { width: sidebarX - 40 } 
-        });
+    createMobileButtons(y, width) {
+        const btnWidth = (width - 40) / 4;
+        const commands = ['HELP', 'MOVE', 'SCAN', 'JOIN'];
         
-        this.logLines.push(newText);
+        commands.forEach((cmd, i) => {
+            const x = 20 + (i * btnWidth);
+            const btn = this.add.rectangle(x + btnWidth/2 - 5, y, btnWidth - 10, 40, 0x003300)
+                .setStrokeStyle(1, 0x00FF00)
+                .setInteractive({ useHandCursor: true });
+            
+            this.add.text(x + btnWidth/2 - 5, y, cmd, { fontSize: '14px', color: '#00FF00' }).setOrigin(0.5);
+            
+            btn.on('pointerdown', () => {
+                this.cameras.main.shake(50, 0.002);
+                if (cmd === 'MOVE') this.currentInput = "move ";
+                else if (cmd === 'JOIN') this.currentInput = "join ";
+                else this.processCommand(cmd.toLowerCase());
+                this.updatePrompt();
+            });
+        });
+
+        // Add a "Keyboard" toggle button for mobile
+        const kbBtn = this.add.rectangle(width - 40, y - 50, 60, 40, 0x333300)
+            .setStrokeStyle(1, 0xFFFF00)
+            .setInteractive({ useHandCursor: true });
+        this.add.text(width - 40, y - 50, "KBD", { fontSize: '12px', color: '#FFFF00' }).setOrigin(0.5);
+        
+        kbBtn.on('pointerdown', () => {
+            // Trigger browser virtual keyboard by focusing a hidden input if needed
+            // For now, let's just log it
+            this.logMessage("Manual Keyboard Input Requested.", COLORS.YELLOW);
+        });
+    }
+
+    logMessage(message, color = COLORS.WHITE) {
+        const textObj = this.add.text(20, 0, `> ${message}`, { ...this.baseTextConfig, color });
+        this.logLines.push(textObj);
         this.alignLog();
     }
 
@@ -617,13 +673,21 @@ class MainScene extends Phaser.Scene {
 
 // Phaser Configuration
 const config = {
-    type: Phaser.AUTO, // Use AUTO for better compatibility
-    width: 1024,
-    height: 768,
+    type: Phaser.WEBGL,
+    width: window.innerWidth,
+    height: window.innerHeight,
     parent: 'game-container',
-    backgroundColor: '#000000',
     scene: [MainScene],
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
     pipeline: { CustomPipeline } // Register our custom pipeline
 };
 
 const game = new Phaser.Game(config);
+
+// Handle window resizing
+window.addEventListener('resize', () => {
+    game.scale.resize(window.innerWidth, window.innerHeight);
+});
