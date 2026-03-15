@@ -15,7 +15,9 @@ class MainScene extends Phaser.Scene {
         console.log("Phaser: create() starting...");
         
         // --- Device Detection ---
-        this.isMobile = !this.sys.game.device.os.desktop || window.innerWidth < 800;
+        this.isMobile = !this.sys.game.device.os.desktop || 
+                        window.innerWidth < 800 || 
+                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         this.isPortrait = window.innerHeight > window.innerWidth;
 
         // Get game dimensions
@@ -362,14 +364,23 @@ class MainScene extends Phaser.Scene {
             document.body.appendChild(nativeKbBtn);
         }
         
-        nativeKbBtn.onclick = () => {
+        const triggerFocus = (e) => {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             if (mobileInput) {
                 mobileInput.focus();
+                // Some Android browsers need a second attempt or a small delay
+                setTimeout(() => mobileInput.focus(), 10);
                 this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
             } else {
                 this.logMessage("ERROR: Input proxy missing.", COLORS.RED);
             }
         };
+
+        nativeKbBtn.ontouchstart = triggerFocus;
+        nativeKbBtn.onclick = triggerFocus; // Fallback for some browsers
 
         // Clean up on scene shutdown
         this.events.once('shutdown', () => {

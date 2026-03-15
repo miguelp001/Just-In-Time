@@ -24,27 +24,35 @@ canvas {
 
 .hidden-input {
     position: absolute;
-    left: -9999px;
-    top: -9999px;
-    opacity: 0;
-    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    left: 10px;
+    top: 10px;
+    opacity: 0.01;
+    border: none;
+    padding: 0;
+    margin: 0;
+    z-index: -1;
 }
 
 .mobile-kbd-btn {
     position: absolute;
-    right: 10px;
-    bottom: 80px;
-    width: 60px;
-    height: 40px;
-    background: rgba(51, 51, 0, 0.8);
-    border: 1px solid #FFFF00;
+    right: 15px;
+    bottom: 90px;
+    width: 70px;
+    height: 50px;
+    background: rgba(80, 80, 0, 0.9);
+    border: 2px solid #FFFF00;
     color: #FFFF00;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
     font-weight: bold;
     cursor: pointer;
-    z-index: 1000;
-    display: none; /* Hidden by default, shown by JS on mobile */
+    z-index: 10000;
+    display: none;
     align-items: center;
     justify-content: center;
+    border-radius: 4px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
