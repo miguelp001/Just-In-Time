@@ -1,0 +1,7 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "just-in-time"
+main = "src/index.js" # or your entry point
+compatibility_date = "03-15-2026"
+
+[assets]
+directory = "./public"  # <--- Change this to your build folder
