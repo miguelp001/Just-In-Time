@@ -11,7 +11,7 @@ class_name = "GameServer"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["GameServer"]
+new_sqlite_classes = ["GameServer"]
 
 [observability]
 enabled = true
