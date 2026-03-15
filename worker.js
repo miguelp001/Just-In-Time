@@ -221,24 +221,23 @@ export class GameServer {
             }
         } else if (mainCmd === 'join') {
             if (args.length < 2) {
-                this.send(ws, 'log', { message: "ERROR: Provide a ship ID (e.g., 'join TGB-1001').", color: '#FF0000' });
+                this.send(ws, 'log', { message: "ERROR: Provide a ship ID or name (e.g., 'join TGB-1001' or 'join Vanguard').", color: '#FF0000' });
                 return;
             }
-            const targetId = args[1].toUpperCase();
-            const targetShip = this.ships[targetId];
+            const targetInput = args.slice(1).join(' ').toUpperCase();
+            let targetShip = this.ships[targetInput] || Object.values(this.ships).find(s => s.name.toUpperCase() === targetInput);
             
             if (!targetShip) {
-                this.send(ws, 'log', { message: `ERROR: No ship found with registration ${targetId}.`, color: '#FF0000' });
+                this.send(ws, 'log', { message: `ERROR: No ship found with name or registration '${targetInput}'.`, color: '#FF0000' });
                 return;
             }
             if (targetShip.crew.length >= 4) {
                 this.send(ws, 'log', { message: `ERROR: ${targetShip.name} is at maximum crew capacity.`, color: '#FF0000' });
                 return;
             }
-            
-            if (!this.pendingRequests[targetId]) this.pendingRequests[targetId] = [];
-            if (!this.pendingRequests[targetId].includes(player.id)) {
-                this.pendingRequests[targetId].push(player.id);
+            if (!this.pendingRequests[targetShip.id]) this.pendingRequests[targetShip.id] = [];
+            if (!this.pendingRequests[targetShip.id].includes(player.id)) {
+                this.pendingRequests[targetShip.id].push(player.id);
             }
             
             this.send(ws, 'log', { message: `[SYS] Boarding request sent to ${targetShip.name}. Awaiting approval...`, color: '#FFFF00' });
@@ -335,16 +334,24 @@ export class GameServer {
                 });
             }
         } else if (mainCmd === 'approve' || mainCmd === 'deny') {
-            const targetId = args[1];
-            if (this.pendingRequests[ship.id] && this.pendingRequests[ship.id].includes(targetId)) {
-                this.pendingRequests[ship.id] = this.pendingRequests[ship.id].filter(id => id !== targetId);
-                const targetPlayer = this.players[targetId];
+            const targetIdInput = args[1];
+            if (!this.pendingRequests[ship.id]) {
+                this.send(ws, 'log', { message: "ERROR: No pending requests for this ship.", color: '#FF0000' });
+                return;
+            }
+
+            // Find the actual playerId from the input (could be short ID or full UUID)
+            const actualPlayerId = this.pendingRequests[ship.id].find(id => id === targetIdInput || id.startsWith(targetIdInput));
+            
+            if (actualPlayerId) {
+                this.pendingRequests[ship.id] = this.pendingRequests[ship.id].filter(id => id !== actualPlayerId);
+                const targetPlayer = this.players[actualPlayerId];
                 if (mainCmd === 'approve' && targetPlayer && ship.crew.length < 4) {
                     targetPlayer.state = 'IN_GAME';
                     targetPlayer.shipId = ship.id;
                     targetPlayer.room = ROOMS['cargo'];
-                    ship.crew.push(targetId);
-                    const ts = this.sessions.find(s => s.playerId === targetId);
+                    ship.crew.push(actualPlayerId);
+                    const ts = this.sessions.find(s => s.playerId === actualPlayerId);
                     if (ts) {
                         this.send(ts.ws, 'update_ui', { state: 'IN_GAME', location: targetPlayer.room, sector: ship.sector });
                         this.send(ts.ws, 'log', { message: `[SYS] Boarding request APPROVED. Welcome to the ${ship.name}.`, color: '#00FF00' });
@@ -352,9 +359,11 @@ export class GameServer {
                     }
                     broadcast(`[SYS] ${targetPlayer.name} has joined the crew.`, '#FFFF00');
                 } else if (targetPlayer) {
-                    const ts = this.sessions.find(s => s.playerId === targetId);
+                    const ts = this.sessions.find(s => s.playerId === actualPlayerId);
                     if (ts) this.send(ts.ws, 'log', { message: `[SYS] Boarding request DENIED by ${ship.name}.`, color: '#FF0000' });
                 }
+            } else {
+                this.send(ws, 'log', { message: `ERROR: No pending request matching '${targetIdInput}'.`, color: '#FF0000' });
             }
         } else if (mainCmd === 'move') {
             const dest = args[1]?.toLowerCase();

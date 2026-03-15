@@ -121,8 +121,8 @@ class MainScene extends Phaser.Scene {
             if (event.keyCode === 8 && this.currentInput.length > 0) {
                 // Backspace
                 this.currentInput = this.currentInput.slice(0, -1);
-            } else if (event.keyCode === 32 || (event.keyCode >= 48 && event.keyCode <= 90)) {
-                // Alphanumeric + Space
+            } else if (event.keyCode === 32 || (event.keyCode >= 48 && event.keyCode <= 90) || event.keyCode === 189 || event.keyCode === 173 || event.keyCode === 190) {
+                // Alphanumeric + Space + Hyphen + Dot
                 this.currentInput += event.key.toLowerCase();
             } else if (event.keyCode === 13) {
                 // Enter
