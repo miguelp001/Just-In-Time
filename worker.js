@@ -262,6 +262,34 @@ export class GameServer {
         });
     }
 
+    async destroyShip(shipId) {
+        const ship = this.ships[shipId];
+        if (!ship) return;
+
+        // Notify and eject crew
+        ship.crew.forEach(playerId => {
+            const player = this.players[playerId];
+            if (player) {
+                player.state = 'LOBBY';
+                player.shipId = null;
+                player.room = 'Bridge';
+            }
+            
+            const session = this.sessions.find(s => s.playerId === playerId);
+            if (session) {
+                this.send(session.ws, 'log', { message: `\n[!!!] CRITICAL FAILURE: THE ${ship.name} HAS BEEN DESTROYED.`, color: '#FF0000' });
+                this.send(session.ws, 'log', { message: `EJECTING TO LOBBY...`, color: '#FFFF00' });
+                this.send(session.ws, 'update_ui', { state: 'LOBBY' });
+            }
+        });
+
+        // Cleanup storage
+        delete this.ships[shipId];
+        delete this.pendingRequests[shipId];
+        
+        await this.saveState();
+    }
+
     async handleCommand(session, cmd) {
         const player = this.players[session.playerId];
         if (!player) return;
@@ -772,6 +800,11 @@ export class GameServer {
                 ship.overchargeActive = true;
                 ship.cooldowns['Weapons Cntrl'] = 2;
                 broadcast(`[WEAPONS] WARNING: WEAPONS OVERCHARGED. HULL TOOK 5 DMG FROM HEAT.`, '#FF0000');
+                
+                if (ship.hull <= 0) {
+                    await this.destroyShip(ship.id);
+                    return;
+                }
 
             } else if (mainCmd === 'flak') {
                 if (ship.scrap < 5) {
@@ -1116,6 +1149,12 @@ export class GameServer {
                     } else if (ship.jammedCooldown > 0 && Math.random() < 0.1) { // 10% chance per tick to print jammed message if they would've attacked
                          broadcast(`[!] Enemy attempted to fire but targeting systems are JAMMED.`, '#00FFFF');
                     }
+                }
+
+                if (ship.hull <= 0) {
+                    await this.destroyShip(ship.id);
+                    stateChanged = true;
+                    continue; // Skip further processing for this destroyed ship
                 }
 
                 // Sync Ship

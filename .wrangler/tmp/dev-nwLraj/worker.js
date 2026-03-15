@@ -1803,6 +1803,28 @@ var GameServer = class {
       pendingRequests: this.pendingRequests
     });
   }
+  async destroyShip(shipId) {
+    const ship = this.ships[shipId];
+    if (!ship) return;
+    ship.crew.forEach((playerId) => {
+      const player = this.players[playerId];
+      if (player) {
+        player.state = "LOBBY";
+        player.shipId = null;
+        player.room = "Bridge";
+      }
+      const session = this.sessions.find((s) => s.playerId === playerId);
+      if (session) {
+        this.send(session.ws, "log", { message: `
+[!!!] CRITICAL FAILURE: THE ${ship.name} HAS BEEN DESTROYED.`, color: "#FF0000" });
+        this.send(session.ws, "log", { message: `EJECTING TO LOBBY...`, color: "#FFFF00" });
+        this.send(session.ws, "update_ui", { state: "LOBBY" });
+      }
+    });
+    delete this.ships[shipId];
+    delete this.pendingRequests[shipId];
+    await this.saveState();
+  }
   async handleCommand(session, cmd) {
     const player = this.players[session.playerId];
     if (!player) return;
@@ -2281,6 +2303,10 @@ var GameServer = class {
         ship.overchargeActive = true;
         ship.cooldowns["Weapons Cntrl"] = 2;
         broadcast(`[WEAPONS] WARNING: WEAPONS OVERCHARGED. HULL TOOK 5 DMG FROM HEAT.`, "#FF0000");
+        if (ship.hull <= 0) {
+          await this.destroyShip(ship.id);
+          return;
+        }
       } else if (mainCmd === "flak") {
         if (ship.scrap < 5) {
           this.send(ws, "log", { message: "ERROR: REQUIRES 5 SCRAP AMMO.", color: "#FF0000" });
@@ -2615,6 +2641,11 @@ var GameServer = class {
           } else if (ship.jammedCooldown > 0 && Math.random() < 0.1) {
             broadcast(`[!] Enemy attempted to fire but targeting systems are JAMMED.`, "#00FFFF");
           }
+        }
+        if (ship.hull <= 0) {
+          await this.destroyShip(ship.id);
+          stateChanged = true;
+          continue;
         }
         ship.crew.forEach((mid) => {
           const ses = this.sessions.find((s) => s.playerId === mid);
