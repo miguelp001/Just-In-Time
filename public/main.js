@@ -353,18 +353,28 @@ class MainScene extends Phaser.Scene {
             });
         });
 
-        // Add a "Keyboard" toggle button for mobile
-        const kbBtn = this.add.rectangle(width - 40, y - 50, 60, 40, 0x333300)
-            .setStrokeStyle(1, 0xFFFF00)
-            .setInteractive({ useHandCursor: true });
-        this.add.text(width - 40, y - 50, "KBD", { fontSize: '12px', color: '#FFFF00' }).setOrigin(0.5);
+        // Add a "Keyboard" toggle button for mobile (Native DOM Button for Android Reliability)
+        const nativeKbBtn = document.createElement('button');
+        nativeKbBtn.innerText = "KBD";
+        nativeKbBtn.className = "mobile-kbd-btn";
+        if (this.isMobile) {
+            nativeKbBtn.style.display = "flex";
+            document.body.appendChild(nativeKbBtn);
+        }
         
-        kbBtn.on('pointerdown', () => {
+        nativeKbBtn.onclick = () => {
             if (mobileInput) {
                 mobileInput.focus();
                 this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
             } else {
                 this.logMessage("ERROR: Input proxy missing.", COLORS.RED);
+            }
+        };
+
+        // Clean up on scene shutdown
+        this.events.once('shutdown', () => {
+            if (nativeKbBtn.parentNode) {
+                nativeKbBtn.parentNode.removeChild(nativeKbBtn);
             }
         });
     }

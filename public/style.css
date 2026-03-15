@@ -29,3 +29,22 @@ canvas {
     opacity: 0;
     pointer-events: none;
 }
+
+.mobile-kbd-btn {
+    position: absolute;
+    right: 10px;
+    bottom: 80px;
+    width: 60px;
+    height: 40px;
+    background: rgba(51, 51, 0, 0.8);
+    border: 1px solid #FFFF00;
+    color: #FFFF00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 1000;
+    display: none; /* Hidden by default, shown by JS on mobile */
+    align-items: center;
+    justify-content: center;
+}
