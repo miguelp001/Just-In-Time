@@ -1500,6 +1500,5 @@ function getRandomEvent() {
     return GAME_EVENTS[Math.floor(Math.random() * GAME_EVENTS.length)];
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { GAME_EVENTS, getRandomEvent, COLORS, SYMBOLS, SECTOR_FLAVOR, ROOM_DESCRIPTIONS };
-}
+
+export { GAME_EVENTS, getRandomEvent, COLORS, SYMBOLS, SECTOR_FLAVOR, ROOM_DESCRIPTIONS };

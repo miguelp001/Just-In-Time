@@ -71,3 +71,5 @@ const CustomPipeline = new Phaser.Class({
         });
     }
 });
+
+export { CustomPipeline };

@@ -1,16 +1,17 @@
 name = "just-in-time"
+main = "worker.js"
 compatibility_date = "2024-03-14"
 
 [assets]
 directory = "./public"
 
-# Exclusions are now simpler as node_modules is outside the assets directory
-exclude = [
-  ".git",
-  ".github",
-  ".antigravity",
-  "brain",
-  "implementation_plan.md",
-  "task.md",
-  "walkthrough.md"
-]
+[[durable_objects.bindings]]
+name = "GAME_SERVER"
+class_name = "GameServer"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameServer"]
+
+[observability]
+enabled = true

@@ -1,5 +1,5 @@
-// Shared constants provided by events.js
-// COLORS, SYMBOLS
+import { COLORS, SYMBOLS, ROOM_DESCRIPTIONS } from './events.js';
+import { CustomPipeline } from './crt_shader.js';
 
 class MainScene extends Phaser.Scene {
     constructor() {
@@ -130,76 +130,81 @@ class MainScene extends Phaser.Scene {
     }
 
     connectToServer() {
-        if (typeof io !== 'undefined') {
-            // Check for server selection in query params (e.g., ?server=http://localhost:3000)
-            const urlParams = new URLSearchParams(window.location.search);
-            const remoteServer = urlParams.get('server');
-            
-            if (remoteServer) {
-                this.logMessage(`CONNECTING TO REMOTE UPLINK: ${remoteServer}...`, COLORS.CYAN);
-                this.socket = io(remoteServer);
-            } else {
-                // Default to origin
-                this.socket = io();
+        // Use standard WebSockets for Cloudflare Workers
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // In dev, we might connect to local. In production, we connect to /ws on the current host.
+        const urlParams = new URLSearchParams(window.location.search);
+        const remoteServer = urlParams.get('server');
+        const wsUrl = remoteServer ? remoteServer.replace('http', 'ws') + '/ws' : `${protocol}//${window.location.host}/ws`;
+
+        this.logMessage(`CONNECTING TO UPLINK: ${wsUrl}...`, COLORS.CYAN);
+        this.socket = new WebSocket(wsUrl);
+
+        this.socket.onopen = () => {
+            this.logMessage(`Uplink secured. Ready.`, COLORS.GREEN);
+            this.socket.connected = true; // For compatibility with local check
+        };
+
+        this.socket.onmessage = (event) => {
+            try {
+                const packet = JSON.parse(event.data);
+                const { type, data } = packet;
+
+                if (type === 'log') {
+                    this.logMessage(`[SYS] ${data.message}`, data.color || COLORS.WHITE);
+                } else if (type === 'chat') {
+                    this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
+                } else if (type === 'update_ui') {
+                    this.handleUpdateUI(data);
+                } else if (type === 'ship_sync') {
+                    this.handleShipSync(data);
+                }
+            } catch (err) {
+                console.error("Protocol Error:", err);
             }
-            
-            this.socket.on('connect_error', (err) => {
-                console.warn("Connection failed. Use '?server=URL' to specify a remote backend.");
-                this.logMessage("UPLINK OFFLINE. Use ?server=<URL> to specify backend.", COLORS.YELLOW);
-            });
-        } else {
-            console.error("socket.io not found! Is the CDN reachable?");
-            this.logMessage("CRITICAL ERROR: Uplink module (socket.io) not found.", COLORS.RED);
-            this.logMessage("Please check your internet connection or script tags.", COLORS.GRAY);
-            return;
+        };
+
+        this.socket.onerror = (err) => {
+            console.warn("Connection failed. Use '?server=http://ADDRESS' to point to a specific backend.");
+            this.logMessage("UPLINK OFFLINE. SECURE LINK FAILED.", COLORS.YELLOW);
+        };
+
+        this.socket.onclose = () => {
+             this.logMessage("LINK SEVERED. RECONNECTING IN 5s...", COLORS.RED);
+             setTimeout(() => this.connectToServer(), 5000);
+        };
+    }
+
+    handleUpdateUI(data) {
+        if (data.state) {
+            this.gameState.networkState = data.state;
+            if (data.state === 'LOBBY') {
+                this.headerText.setText("[ LOBBY ]");
+                this.sidebarLocation.setText("");
+            }
         }
-
-        this.socket.on('log', (data) => {
-            this.logMessage(`[SYS] ${data.message}`, data.color || COLORS.WHITE);
-        });
-
-        this.socket.on('chat', (data) => {
-            this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
-        });
-
-        this.socket.on('update_ui', (data) => {
-            if (data.state) {
-                this.gameState.networkState = data.state;
-                if (data.state === 'LOBBY') {
-                    this.headerText.setText("[ LOBBY ]");
-                    this.sidebarLocation.setText("");
-                }
-            }
-            if (data.location) {
-                this.gameState.location = data.location;
-                // Preserve the [L] tag styling
-                const shortTag = data.location.charAt(0).toUpperCase();
-                this.sidebarLocation.setText(`[${shortTag}] ${data.location}`);
-            }
-            if (data.sector !== undefined) {
-                // Update header or sidebar with sector info
-                this.gameState.sector = data.sector;
-                if (this.gameState.networkState === 'IN_GAME') {
-                    this.updateHeader();
-                }
-            }
-        });
-
-        this.socket.on('ship_sync', (data) => {
+        if (data.location) {
+            this.gameState.location = data.location;
+            const shortTag = data.location.charAt(0).toUpperCase();
+            this.sidebarLocation.setText(`[${shortTag}] ${data.location}`);
+        }
+        if (data.sector !== undefined) {
+            this.gameState.sector = data.sector;
             if (this.gameState.networkState === 'IN_GAME') {
-                this.gameState.hull = data.hull;
-                this.gameState.fuel = data.fuel;
-                this.gameState.energy = data.energy;
-                this.gameState.scrap = data.scrap;
-                this.gameState.cooldowns = data.cooldowns;
                 this.updateHeader();
             }
-        });
+        }
+    }
 
-        // Disable standard game events/generation locally (Server handles this now)
-        this.socket.on('connect', () => {
-             this.logMessage(`Uplink secured. Ready.`, COLORS.GREEN);
-        });
+    handleShipSync(data) {
+        if (this.gameState.networkState === 'IN_GAME') {
+            this.gameState.hull = data.hull;
+            this.gameState.fuel = data.fuel;
+            this.gameState.energy = data.energy;
+            this.gameState.scrap = data.scrap;
+            this.gameState.cooldowns = data.cooldowns;
+            this.updateHeader();
+        }
     }
 
     updateHeader() {
@@ -263,8 +268,8 @@ class MainScene extends Phaser.Scene {
         this.logMessage(cmd, COLORS.GRAY); 
 
         // MMO PHASE 1: Forward ALL input directly to the Server
-        if (this.socket && this.socket.connected) {
-            this.socket.emit('command', cmd);
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({ type: 'command', cmd }));
         } else {
             this.logMessage(`ERROR: UPLINK OFFLINE. COMMAND DROPPED.`, COLORS.RED);
         }
