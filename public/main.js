@@ -169,15 +169,22 @@ class MainScene extends Phaser.Scene {
         // --- Apply CRT Shader ---
         this.cameras.main.setPostPipeline(CustomPipeline);
 
-        // Global Tap to Re-focus (Vital for Safari)
+        // Global Tap to Re-focus (Vital for Safari/Opera/Desktop)
         this.input.on('pointerdown', () => {
-            if (this.isMobile && this.mobileInput) {
-                this.mobileInput.style.pointerEvents = 'auto'; // Enable temporarily
+            if (this.mobileInput) {
+                // Some browsers ignore focus on elements with pointer-events: none
+                this.mobileInput.style.pointerEvents = 'auto'; 
                 this.mobileInput.focus();
-                // Safari needs it immediate, but a second attempt helps on some builds
-                setTimeout(() => { if (this.mobileInput) this.mobileInput.focus(); }, 10);
-                // Disable pointer events after focus so it doesn't block game taps
-                setTimeout(() => { if (this.mobileInput) this.mobileInput.style.pointerEvents = 'none'; }, 100);
+                
+                // Safari/Opera need it immediate, but a second attempt helps
+                setTimeout(() => { 
+                    if (this.mobileInput) this.mobileInput.focus(); 
+                }, 10);
+
+                // Disable pointer events after a delay so it doesn't block game interaction
+                setTimeout(() => { 
+                    if (this.mobileInput) this.mobileInput.style.pointerEvents = 'none'; 
+                }, 150);
             }
         });
 
@@ -386,13 +393,19 @@ class MainScene extends Phaser.Scene {
                 this.mobileInput.style.pointerEvents = 'auto';
                 this.mobileInput.focus();
                 
-                // Some Android/Safari variants need a small delay or second pull
+                // Mobile browsers often need extra nudges
                 setTimeout(() => {
                     if (this.mobileInput) {
                         this.mobileInput.focus();
-                        this.mobileInput.style.pointerEvents = 'none';
                     }
                 }, 50);
+
+                // Keep it active long enough to register the focus
+                setTimeout(() => {
+                    if (this.mobileInput) {
+                        this.mobileInput.style.pointerEvents = 'none';
+                    }
+                }, 200);
                 
                 this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
             } else {
