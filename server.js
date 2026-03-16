@@ -21,8 +21,14 @@ const NUM_SECTORS = 200;
 const galaxy = {}; // Holds { id, links: [] }
 
 function generateGalaxy() {
+    const GRID_SIZE = 100;
     for (let i = 1; i <= NUM_SECTORS; i++) {
-        galaxy[i] = { id: i, links: [] };
+        galaxy[i] = { 
+            id: i, 
+            links: [],
+            x: Math.floor(Math.random() * GRID_SIZE),
+            y: Math.floor(Math.random() * (GRID_SIZE / 2))
+        };
     }
     
     // Create random links
@@ -68,7 +74,8 @@ io.on('connection', (socket) => {
         name: `Guest-${Math.floor(Math.random() * 1000)}`,
         state: 'LOBBY',
         room: 'Bridge',
-        shipId: null
+        shipId: null,
+        visitedSectors: [1]
     };
     players[socket.id] = newPlayer;
 
@@ -120,6 +127,9 @@ io.on('connection', (socket) => {
                 
                 socket.emit('log', { message: `[SYS] Commissioned ${shipName} (${newShipId}). You are the Captain.`, color: '#00FF00' });
                 socket.emit('update_ui', { state: 'IN_GAME', location: player.room, sector: ships[newShipId].sector });
+                if (!player.visitedSectors.includes(ships[newShipId].sector)) {
+                    player.visitedSectors.push(ships[newShipId].sector);
+                }
                 socket.emit('log', { message: ROOM_DESCRIPTIONS[player.room], color: '#AAAAAA' });
             }
             else if (mainCmd === 'ships') {
@@ -177,6 +187,7 @@ io.on('connection', (socket) => {
                 socket.emit('log', { message: `> 'create <name>': Commission a new ship and become its Captain.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'join <id>': Request to join the crew of an existing ship.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'who': See a list of all connected players.`, color: '#FFFFFF' });
+                socket.emit('log', { message: `> 'map': Display discovered sectors and nearby links.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'say <msg>': Broadcast a message to everyone in the lobby.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'help': Show this message.`, color: '#FFFFFF' });
             }
@@ -197,6 +208,9 @@ io.on('connection', (socket) => {
                         });
                     }
                 });
+            }
+            else if (mainCmd === 'map') {
+                renderRadarMap(socket, player);
             }
             else {
                 socket.emit('log', { message: `ERROR: Invalid lobby command. Try 'ships', 'create <name>', 'join <id>', 'who', or 'help'.`, color: '#FF0000' });
@@ -306,6 +320,9 @@ io.on('connection', (socket) => {
                     }
                 });
             }
+        }
+        else if (mainCmd === 'map') {
+            renderRadarMap(socket, player);
         }
         else if (mainCmd === 'approve' || mainCmd === 'deny') {
             if (args.length < 2) {
@@ -424,6 +441,9 @@ io.on('connection', (socket) => {
                 setTimeout(() => {
                     if (ships[ship.id]) { // Ensure ship still exists
                         ship.sector = destSector;
+                        if (!player.visitedSectors.includes(destSector)) {
+                            player.visitedSectors.push(destSector);
+                        }
                         ship.crew.forEach(memberId => {
                             io.to(memberId).emit('update_ui', { sector: ship.sector });
                             io.to(memberId).emit('log', { message: `JUMP SUCCESSFUL. Arrived in Sector ${destSector}.`, color: '#00FF00' });
@@ -550,6 +570,18 @@ io.on('connection', (socket) => {
                 socket.emit('log', { message: `[${p.id.slice(0, 4)}] ${p.name} - STATUS: ${status}`, color: '#FFFFFF' });
             });
         }
+        else if (mainCmd === 'map') {
+            socket.emit('log', { message: `--- SEARCHING DISCOVERED SECTORS ---`, color: '#00FFFF' });
+            renderRadarMap(socket, player);
+        }
+        else if (mainCmd === 'suicide') {
+            socket.emit('log', { message: `CRITICAL FAILURE: SELF-DESTRUCT SEQUENCE INITIATED.`, color: '#FF0000' });
+            const ship = ships[player.shipId];
+            if (ship) {
+                ship.hull = 0;
+                destroyShip(ship.id);
+            }
+        }
         else if (mainCmd === 'help') {
             socket.emit('log', { message: `--- COMMAND PROTOCOLS ---`, color: '#FFFF00' });
             socket.emit('log', { message: `> 'move <room>': Transfer to Bridge, Weapons, Cargo, or Engineering.`, color: '#FFFFFF' });
@@ -562,6 +594,8 @@ io.on('connection', (socket) => {
             socket.emit('log', { message: `> 'attack': Engage targets with ship weapon systems. [WEAPONS ONLY]`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'repair': Use 5 Scrap to restore 10 Hull integrity. [ENGINEERING ONLY]`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'who': Display manifest of all active pilots.`, color: '#FFFFFF' });
+            socket.emit('log', { message: `> 'map': Display discovered sectors and nearby links.`, color: '#FFFFFF' });
+            socket.emit('log', { message: `> 'suicide': Initiate emergency self-destruct sequence.`, color: '#FF0000' });
             socket.emit('log', { message: `> 'help': Display this operational guide.`, color: '#FFFFFF' });
         }
         else {
@@ -596,6 +630,32 @@ io.on('connection', (socket) => {
         delete players[socket.id];
     });
 });
+
+// --- SHIP DESTRUCTION ---
+function destroyShip(shipId) {
+    const ship = ships[shipId];
+    if (!ship) return;
+
+    console.log(`[SYS] DESTROYING SHIP: ${ship.name} (${shipId})`);
+    
+    // Notify and eject crew
+    ship.crew.forEach(playerId => {
+        const player = players[playerId];
+        if (player) {
+            player.state = 'LOBBY';
+            player.shipId = null;
+            player.room = 'Bridge';
+        }
+        
+        io.to(playerId).emit('log', { message: `\n[!!!] CRITICAL FAILURE: THE ${ship.name} HAS BEEN DESTROYED.`, color: '#FF0000' });
+        io.to(playerId).emit('log', { message: `EJECTING TO LOBBY...`, color: '#FFFF00' });
+        io.to(playerId).emit('update_ui', { state: 'LOBBY' });
+    });
+
+    // Cleanup
+    delete ships[shipId];
+    delete pendingRequests[shipId];
+}
 
 // --- SERVER TICK LOOP ---
 let tickCounter = 0;
@@ -639,8 +699,53 @@ setInterval(() => {
                  });
              }
         }
+
+        // Death Check
+        if (ship.hull <= 0) {
+            destroyShip(ship.id);
+        }
     });
 }, 1000);
+
+// --- RADAR RENDERER ---
+function renderRadarMap(socket, player) {
+    const currentSectorId = (player.state === 'IN_GAME' && player.shipId) ? ships[player.shipId].sector : 1;
+    const currentSector = galaxy[currentSectorId];
+    const visited = player.visitedSectors || [1];
+    
+    const neighbors = currentSector.links;
+    const visibleIds = new Set([...visited, ...neighbors]);
+    const visibleSectors = Array.from(visibleIds).map(id => galaxy[id]);
+
+    const mapWidth = 40;
+    const mapHeight = 15;
+    let grid = Array(mapHeight).fill().map(() => Array(mapWidth).fill(' '));
+
+    visibleSectors.forEach(s => {
+        const relX = Math.floor((s.x - currentSector.x) / 2) + Math.floor(mapWidth / 2);
+        const relY = Math.floor((s.y - currentSector.y) / 4) + Math.floor(mapHeight / 2);
+
+        if (relX >= 0 && relX < mapWidth - 4 && relY >= 0 && relY < mapHeight) {
+            let char = visited.includes(s.id) ? '.' : '?';
+            if (s.id === currentSectorId) char = '@';
+            else if (s.encounterType === 'station') char = '#'; // Parity with how stations might be represented
+
+            const label = `[${char}]`;
+            for (let i = 0; i < label.length; i++) {
+                if (relX + i < mapWidth) grid[relY][relX + i] = label[i];
+            }
+        }
+    });
+
+    const border = "+".padEnd(mapWidth - 1, "-") + "+";
+    let output = `\n--- CRT RADAR UNIT: SEC ${currentSectorId} ---\n${border}\n`;
+    grid.forEach(row => {
+        output += "|" + row.join('') + "|\n";
+    });
+    output += `${border}\n[@] YOU  [#] STATION  [.] KNOWN  [?] UNKNOWN\n`;
+
+    socket.emit('log', { message: output, color: '#00FF00' });
+}
 
 // --- ENCOUNTER GENERATION ---
 function generateEncounter(ship, broadcast) {

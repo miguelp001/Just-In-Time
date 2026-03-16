@@ -179,61 +179,55 @@ class MainScene extends Phaser.Scene {
     }
 
     connectToServer() {
-        // Use standard WebSockets for Cloudflare Workers
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // In dev, we might connect to local. In production, we connect to /ws on the current host.
-        const urlParams = new URLSearchParams(window.location.search);
-        const remoteServer = urlParams.get('server');
-        const wsUrl = remoteServer ? remoteServer.replace('http', 'ws') + '/ws' : `${protocol}//${window.location.host}/ws`;
+        this.logMessage(`INITIALIZING NEBULA UPLINK...`, COLORS.CYAN);
+        
+        // Use Socket.IO instead of raw WebSockets
+        this.socket = io();
 
-        this.logMessage(`CONNECTING TO UPLINK: ${wsUrl}...`, COLORS.CYAN);
-        this.socket = new WebSocket(wsUrl);
-
-        this.socket.onopen = () => {
+        this.socket.on('connect', () => {
             this.logMessage(`Uplink secured. Ready.`, COLORS.GREEN);
             this.socket.connected = true; 
             
             // --- PERSISTENCE: Send init with saved token ---
             const savedId = localStorage.getItem('jit_player_id');
-            this.socket.send(JSON.stringify({ 
-                type: 'init', 
-                playerId: savedId 
-            }));
-        };
+            this.socket.emit('command', `init ${savedId || ''}`);
+        });
 
-        this.socket.onmessage = (event) => {
-            try {
-                const packet = JSON.parse(event.data);
-                const { type, data } = packet;
-
-                if (type === 'log') {
-                    this.logMessage(`[SYS] ${data.message}`, data.color || COLORS.WHITE);
-                } else if (type === 'identity') {
-                    localStorage.setItem('jit_player_id', data.id);
-                    this.logMessage(`IDENTITY RECOGNIZED: ${data.id.slice(0, 8)}...`, COLORS.GREEN);
-                } else if (type === 'chat') {
-                    this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
-                } else if (type === 'update_ui') {
-                    this.handleUpdateUI(data);
-                } else if (type === 'ship_sync') {
-                    this.handleShipSync(data);
-                } else if (type === 'update_sector') {
-                    this.handleUpdateSector(data);
-                }
-            } catch (err) {
-                console.error("Protocol Error:", err);
+        this.socket.on('log', (data) => {
+            if (data.message) {
+                this.logMessage(data.message, data.color || COLORS.WHITE);
             }
-        };
+        });
 
-        this.socket.onerror = (err) => {
-            console.warn("Connection failed. Use '?server=http://ADDRESS' to point to a specific backend.");
+        this.socket.on('identity', (data) => {
+            localStorage.setItem('jit_player_id', data.id);
+            this.logMessage(`IDENTITY RECOGNIZED: ${data.id.slice(0, 8)}...`, COLORS.GREEN);
+        });
+
+        this.socket.on('chat', (data) => {
+            this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
+        });
+
+        this.socket.on('update_ui', (data) => {
+            this.handleUpdateUI(data);
+        });
+
+        this.socket.on('ship_sync', (data) => {
+            this.handleShipSync(data);
+        });
+
+        this.socket.on('update_sector', (data) => {
+            this.handleUpdateSector(data);
+        });
+
+        this.socket.on('connect_error', (err) => {
+            console.warn("Connection failed.");
             this.logMessage("UPLINK OFFLINE. SECURE LINK FAILED.", COLORS.YELLOW);
-        };
+        });
 
-        this.socket.onclose = () => {
-             this.logMessage("LINK SEVERED. RECONNECTING IN 5s...", COLORS.RED);
-             setTimeout(() => this.connectToServer(), 5000);
-        };
+        this.socket.on('disconnect', () => {
+             this.logMessage("LINK SEVERED. ATTEMPTING RECONNECT...", COLORS.RED);
+        });
     }
 
     handleUpdateUI(data) {
@@ -340,8 +334,8 @@ class MainScene extends Phaser.Scene {
     }
 
     createMobileButtons(y, width) {
-        const btnWidth = (width - 40) / 4;
-        const commands = ['HELP', 'MOVE', 'SCAN', 'JOIN'];
+        const btnWidth = (width - 40) / 5;
+        const commands = ['HELP', 'MOVE', 'SCAN', 'MAP', 'JOIN'];
         
         commands.forEach((cmd, i) => {
             const x = 20 + (i * btnWidth);
@@ -403,7 +397,8 @@ class MainScene extends Phaser.Scene {
                     }
                 }, 200);
                 
-                this.logMessage("Virtual Keyboard Triggered.", COLORS.YELLOW);
+                // Keep the CRT vibe: log to terminal
+                this.logMessage("LINK ESTABLISHED. SENSOR UPLINK ACTIVE.", COLORS.YELLOW);
             } else {
                 this.logMessage("ERROR: Input proxy missing.", COLORS.RED);
             }
@@ -422,7 +417,18 @@ class MainScene extends Phaser.Scene {
     }
 
     logMessage(message, color = COLORS.WHITE) {
-        const textObj = this.add.text(20, 0, `> ${message}`, { ...this.baseTextConfig, color });
+        // DETECT RADAR MAP: If multi-line, don't prefix with '>'
+        const isMap = message.includes('--- CRT RADAR UNIT');
+        const displayMsg = isMap ? message : `> ${message}`;
+        
+        const textObj = this.add.text(20, 0, displayMsg, { ...this.baseTextConfig, color });
+        
+        // If it's a map, make it stand out with a slight glow or different config if needed
+        if (isMap) {
+            textObj.setStroke('#00FF00', 1);
+            textObj.setShadow(2, 2, '#003300', 2, true, true);
+        }
+
         this.logLines.push(textObj);
         this.alignLog();
     }
@@ -435,8 +441,8 @@ class MainScene extends Phaser.Scene {
         this.logMessage(cmd, COLORS.GRAY); 
 
         // MMO PHASE 1: Forward ALL input directly to the Server
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ type: 'command', cmd }));
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('command', cmd);
         } else {
             this.logMessage(`ERROR: UPLINK OFFLINE. COMMAND DROPPED.`, COLORS.RED);
         }

@@ -294,8 +294,16 @@ export class GameServer {
     }
 
     generateGalaxy() {
+        const GRID_SIZE = 100;
         for (let i = 1; i <= NUM_SECTORS; i++) {
-            this.galaxy[i] = { id: i, links: [], encounterType: null, encounterData: null };
+            this.galaxy[i] = { 
+                id: i, 
+                links: [], 
+                encounterType: null, 
+                encounterData: null,
+                x: Math.floor(Math.random() * GRID_SIZE),
+                y: Math.floor(Math.random() * (GRID_SIZE / 2)) // Wider than tall for terminal display
+            };
         }
         
         // --- PHASE 19: Generate Stations ---
@@ -430,7 +438,8 @@ export class GameServer {
                             name: `Guest-${Math.floor(Math.random() * 1000)}`,
                             state: 'LOBBY',
                             room: 'Bridge',
-                            shipId: null
+                            shipId: null,
+                            visitedSectors: [1] // Start with sector 1 known
                         };
                         this.players[playerId] = player;
                         this.send(ws, 'log', { message: `NEW UPLINK ESTABLISHED. WELCOME TO SPIRAL NEBULA LOBBY.`, color: '#00FF00' });
@@ -523,10 +532,56 @@ export class GameServer {
         });
     }
 
+    renderRadarMap(session, player) {
+        const ws = session.ws;
+        const currentSectorId = (player.state === 'IN_GAME' && player.shipId) ? this.ships[player.shipId].sector : 1;
+        const currentSector = this.galaxy[currentSectorId];
+        const visited = player.visitedSectors || [1];
+        
+        // Find visible sectors: Visited + Neighbors of current
+        const neighbors = currentSector.links;
+        const visibleIds = new Set([...visited, ...neighbors]);
+        const visibleSectors = Array.from(visibleIds).map(id => this.galaxy[id]);
+
+        // Radar bounds (centered on player)
+        const mapWidth = 40;
+        const mapHeight = 15;
+        let grid = Array(mapHeight).fill().map(() => Array(mapWidth).fill(' '));
+
+        // Draw sectors
+        visibleSectors.forEach(s => {
+            const relX = Math.floor((s.x - currentSector.x) / 2) + Math.floor(mapWidth / 2);
+            const relY = Math.floor((s.y - currentSector.y) / 4) + Math.floor(mapHeight / 2);
+
+            if (relX >= 0 && relX < mapWidth - 4 && relY >= 0 && relY < mapHeight) {
+                let char = visited.includes(s.id) ? '.' : '?';
+                if (s.id === currentSectorId) char = '@';
+                else if (this.stations[s.id]) char = '#';
+
+                const label = `[${char}]`;
+                for (let i = 0; i < label.length; i++) {
+                    if (relX + i < mapWidth) grid[relY][relX + i] = label[i];
+                }
+            }
+        });
+
+        // Frame
+        const border = "+".padEnd(mapWidth - 1, "-") + "+";
+        let output = `\n--- CRT RADAR UNIT: SEC ${currentSectorId} ---\n${border}\n`;
+        grid.forEach(row => {
+            output += "|" + row.join('') + "|\n";
+        });
+        output += `${border}\n[@] YOU  [#] STATION  [.] KNOWN  [?] UNKNOWN\n`;
+
+        this.send(ws, 'log', { message: output, color: '#00FF00' });
+    }
+
     async saveState() {
         await this.state.storage.put({
             ships: this.ships,
             players: this.players,
+            galaxy: this.galaxy,
+            stations: this.stations,
             shipCounter: this.shipCounter,
             pendingRequests: this.pendingRequests
         });
@@ -746,8 +801,11 @@ export class GameServer {
             this.send(ws, 'log', { message: `> 'join <id>': Request to join the crew of an existing ship.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'rename <name>': Change your pilot callsign.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'who': See a list of all connected players.`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'map': Display discovered sectors and nearby links.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'say <msg>': Broadcast a message to everyone in the lobby.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'help': Show this message.`, color: '#FFFFFF' });
+        } else if (mainCmd === 'map') {
+            this.renderRadarMap(session, player);
         } else if (mainCmd === 'say') {
             const msgText = args.slice(1).join(' ').replace(/^['"](.*)['"]$/, '$1');
             if (!msgText) {
@@ -1013,6 +1071,9 @@ export class GameServer {
                 setTimeout(async () => {
                     if (this.ships[ship.id]) {
                         ship.sector = destSector;
+                        if (!player.visitedSectors.includes(destSector)) {
+                            player.visitedSectors.push(destSector);
+                        }
                         ship.crew.forEach(mid => {
                             const s = this.sessions.find(ses => ses.playerId === mid);
                             if (s) {
@@ -1112,6 +1173,10 @@ export class GameServer {
                 // Hull cost effect (e.g., Dense-Core Slab)
                 if (atkMods.hullCostPerAttack > 0) {
                     ship.hull -= atkMods.hullCostPerAttack;
+                    if (ship.hull <= 0) {
+                        await this.destroyShip(ship.id);
+                        return;
+                    }
                 }
                 ship.currentEncounter.hp -= dmg;
                 broadcast(`[WEAPONS] Hit ${ship.currentEncounter.name || 'Asteroid'} for ${dmg} DMG.`, '#FF00FF');
@@ -1401,6 +1466,8 @@ export class GameServer {
                     data: { sender: player.name, ship: ship.id, text: msgText, color: '#00FFFF' }
                 });
             }
+        } else if (mainCmd === 'map') {
+            this.renderRadarMap(this.sessions.find(s => s.playerId === player.id), player);
         } else if (mainCmd === 'comm') {
             if (args[1]?.toLowerCase() === 'server') {
                 if (ship.energy < 5) {
@@ -1461,7 +1528,7 @@ export class GameServer {
             }
         } else if (mainCmd === 'help') {
             this.send(ws, 'log', { message: `--- COMMAND PROTOCOLS ---`, color: '#FFFF00' });
-            this.send(ws, 'log', { message: `> GLOBAL: move [m], who [w], rename ship [rn], look [l], help [h/?]`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> GLOBAL: move [m], who [w], rename ship [rn], look [l], map, help [h/?]`, color: '#FFFFFF' });
             if (player.room === ROOMS['bridge']) {
                 this.send(ws, 'log', { message: `> BRIDGE: jump [j], scan [s], hail [hl], shields [sh], evade [ev], jam [jm], comm server`, color: '#00FFFF' });
             } else if (player.room === ROOMS['weapons']) {
