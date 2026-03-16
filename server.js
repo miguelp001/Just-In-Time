@@ -177,7 +177,26 @@ io.on('connection', (socket) => {
                 socket.emit('log', { message: `> 'create <name>': Commission a new ship and become its Captain.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'join <id>': Request to join the crew of an existing ship.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'who': See a list of all connected players.`, color: '#FFFFFF' });
+                socket.emit('log', { message: `> 'say <msg>': Broadcast a message to everyone in the lobby.`, color: '#FFFFFF' });
                 socket.emit('log', { message: `> 'help': Show this message.`, color: '#FFFFFF' });
+            }
+            else if (mainCmd === 'say') {
+                const msgText = args.slice(1).join(' ').replace(/^['"](.*)['"]$/, '$1');
+                if (!msgText) {
+                    socket.emit('log', { message: "ERROR: say requires a message.", color: '#FF0000' });
+                    return;
+                }
+                // Broadcast to everyone in LOBBY state
+                Object.values(players).forEach(p => {
+                    if (p.state === 'LOBBY') {
+                        io.to(p.id).emit('chat', { 
+                            sender: player.name, 
+                            ship: 'LOBBY',
+                            text: msgText,
+                            color: '#00FFFF'
+                        });
+                    }
+                });
             }
             else {
                 socket.emit('log', { message: `ERROR: Invalid lobby command. Try 'ships', 'create <name>', 'join <id>', 'who', or 'help'.`, color: '#FF0000' });
@@ -220,7 +239,42 @@ io.on('connection', (socket) => {
             }
         }
 
-        if (mainCmd === 'comm') {
+        if (mainCmd === 'say') {
+            let isLobbyShout = args[1]?.toLowerCase() === 'lobby';
+            let msgText = isLobbyShout ? args.slice(2).join(' ') : args.slice(1).join(' ');
+            msgText = msgText.replace(/^['"](.*)['"]$/, '$1');
+
+            if (!msgText) {
+                socket.emit('log', { message: 'ERROR: say requires a message.', color: '#FF0000' });
+                return;
+            }
+
+            if (isLobbyShout) {
+                // Broadcast to everyone in LOBBY state
+                Object.values(players).forEach(p => {
+                    if (p.state === 'LOBBY') {
+                        io.to(p.id).emit('chat', { 
+                            sender: player.name, 
+                            ship: currentShip.id,
+                            text: `[LOBBY SHOUT] ${msgText}`,
+                            color: '#FF00FF'
+                        });
+                    }
+                });
+                socket.emit('log', { message: `[SYS] Message broadcast to lobby.`, color: '#AAAAAA' });
+            } else {
+                // Broadcast to ship crew
+                currentShip.crew.forEach(memberId => {
+                    io.to(memberId).emit('chat', { 
+                        sender: player.name, 
+                        ship: currentShip.id,
+                        text: msgText,
+                        color: '#00FFFF'
+                    });
+                });
+            }
+        }
+        else if (mainCmd === 'comm') {
             // Build the message by joining arguments
             const baseStr = args.slice(1).join(' ');
             
@@ -502,6 +556,8 @@ io.on('connection', (socket) => {
             socket.emit('log', { message: `> 'jump <sector>': Plot a FSD jump to a linked sector. [BRIDGE ONLY]`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'scan': View local sector map and connected jump points.`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'comm <msg>': Broadcast a message to all ships in the current sector.`, color: '#FFFFFF' });
+            socket.emit('log', { message: `> 'say <msg>': Send a message to your entire crew.`, color: '#FFFFFF' });
+            socket.emit('log', { message: `> 'say lobby <msg>': Shout a message to the central nebula lobby.`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'mine': Harvest resources from local asteroids. [CARGO BAY ONLY]`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'attack': Engage targets with ship weapon systems. [WEAPONS ONLY]`, color: '#FFFFFF' });
             socket.emit('log', { message: `> 'repair': Use 5 Scrap to restore 10 Hull integrity. [ENGINEERING ONLY]`, color: '#FFFFFF' });

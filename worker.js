@@ -508,6 +508,21 @@ export class GameServer {
         });
     }
 
+    broadcastToLobby(message) {
+        this.sessions.forEach(session => {
+            const player = this.players[session.playerId];
+            if (player && player.state === 'LOBBY') {
+                this.send(session.ws, message.type, message.data);
+            }
+        });
+    }
+
+    broadcastToAll(message) {
+        this.sessions.forEach(session => {
+            this.send(session.ws, message.type, message.data);
+        });
+    }
+
     async saveState() {
         await this.state.storage.put({
             ships: this.ships,
@@ -597,7 +612,7 @@ export class GameServer {
             'a': 'attack', 't': 'target', 'e': 'emp', 'cf': 'chaff', 'oc': 'overcharge', 'fk': 'flak',
             'r': 'repair', 'p': 'patch', 'rr': 'reroute', 'ov': 'overclock', 'sn': 'siphon', 'v': 'vent',
             'mn': 'mine', 'rf': 'refine', 'al': 'airlock', 'pb': 'probe', 'dr': 'drone', 'hd': 'hide',
-            'dk': 'dock', 'b': 'buy', 'rl': 'refuel', 'i': 'inventory', 'inv': 'inventory'
+            'dk': 'dock', 'b': 'buy', 'rl': 'refuel', 'i': 'inventory', 'inv': 'inventory', 'y': 'say'
         };
         if (ALIAS_MAP[mainCmd]) mainCmd = ALIAS_MAP[mainCmd];
 
@@ -731,7 +746,18 @@ export class GameServer {
             this.send(ws, 'log', { message: `> 'join <id>': Request to join the crew of an existing ship.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'rename <name>': Change your pilot callsign.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'who': See a list of all connected players.`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'say <msg>': Broadcast a message to everyone in the lobby.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> 'help': Show this message.`, color: '#FFFFFF' });
+        } else if (mainCmd === 'say') {
+            const msgText = args.slice(1).join(' ').replace(/^['"](.*)['"]$/, '$1');
+            if (!msgText) {
+                this.send(ws, 'log', { message: "ERROR: say requires a message.", color: '#FF0000' });
+                return;
+            }
+            this.broadcastToLobby({
+                type: 'chat',
+                data: { sender: player.name, ship: 'LOBBY', text: msgText, color: '#00FFFF' }
+            });
         } else {
             this.send(ws, 'log', { message: `ERROR: Invalid lobby command.`, color: '#FF0000' });
         }
@@ -1353,6 +1379,28 @@ export class GameServer {
                 ship.cooldowns['Cargo Bay'] = 3;
                 broadcast(`[CARGO] VALUABLE CONTRABAND CONCEALED IN BULKHEADS. Reduced NPC threat profile.`, '#00FFFF');
             }
+        } else if (mainCmd === 'say') {
+            let isLobbyShout = args[1]?.toLowerCase() === 'lobby';
+            let msgText = isLobbyShout ? args.slice(2).join(' ') : args.slice(1).join(' ');
+            msgText = msgText.replace(/^['"](.*)['"]$/, '$1');
+
+            if (!msgText) {
+                this.send(ws, 'log', { message: "ERROR: say requires a message.", color: '#FF0000' });
+                return;
+            }
+
+            if (isLobbyShout) {
+                this.broadcastToLobby({
+                    type: 'chat',
+                    data: { sender: player.name, ship: ship.id, text: `[LOBBY SHOUT] ${msgText}`, color: '#FF00FF' }
+                });
+                this.send(ws, 'log', { message: `[SYS] Message broadcast to lobby.`, color: '#AAAAAA' });
+            } else {
+                this.broadcastToShip(ship.id, {
+                    type: 'chat',
+                    data: { sender: player.name, ship: ship.id, text: msgText, color: '#00FFFF' }
+                });
+            }
         } else if (mainCmd === 'comm') {
             if (args[1]?.toLowerCase() === 'server') {
                 if (ship.energy < 5) {
@@ -1423,6 +1471,8 @@ export class GameServer {
             } else if (player.room === ROOMS['engineering']) {
                 this.send(ws, 'log', { message: `> ENGINEERING: repair [r], reroute [rr], patch [p], overclock [ov], siphon [sn], vent [v]`, color: '#FFA500' });
             }
+            this.send(ws, 'log', { message: `> 'say <msg>': Send a message to your entire crew.`, color: '#FFFFFF' });
+            this.send(ws, 'log', { message: `> 'say lobby <msg>': Shout a message to the central nebula lobby.`, color: '#FFFFFF' });
             this.send(ws, 'log', { message: `> STATION: dock [dk], buy [b], sell [sl], refine [rf]`, color: '#00FF00' });
             this.send(ws, 'log', { message: `> SHIP: inventory [i/inv]`, color: '#FFFFFF' });
         } else if (mainCmd === 'dock') {
