@@ -124,21 +124,15 @@ class MainScene extends Phaser.Scene {
                 event.preventDefault();
             }
 
-            if (event.keyCode === 8) {
-                // Backspace - Phaser handles it for the game's internal state
-                if (this.currentInput.length > 0) {
-                    this.currentInput = this.currentInput.slice(0, -1);
-                }
-            } else if (event.keyCode === 13) {
+            if (event.keyCode === 13) {
                 // Enter
                 if (this.currentInput.trim().length > 0) {
                     this.processCommand(this.currentInput);
-                    this.currentInput = "";
-                    if (this.mobileInput) this.mobileInput.value = "";
                 }
             }
-            // Alphanumeric input is now handled entirely by the mobileInput 'input' listener
-            // to avoid character doubling.
+            
+            // All alphanumeric and backspace input is now handled entirely by 
+            // the 'input' event on the mobileInput element to ensure DOM sync.
             if (!this.gameState.isGameOver) {
                  this.updatePrompt();
             }
@@ -156,11 +150,6 @@ class MainScene extends Phaser.Scene {
                 if (event.keyCode === 13) {
                     if (this.currentInput.trim().length > 0) {
                         this.processCommand(this.currentInput);
-                        this.currentInput = "";
-                        this.mobileInput.value = "";
-                        if (!this.gameState.isGameOver) {
-                            this.updatePrompt();
-                        }
                     }
                 }
             });
@@ -367,9 +356,19 @@ class MainScene extends Phaser.Scene {
             
             btn.on('pointerdown', () => {
                 this.cameras.main.shake(50, 0.002);
-                if (cmd === 'MOVE') this.currentInput = "move ";
-                else if (cmd === 'JOIN') this.currentInput = "join ";
-                else this.processCommand(cmd.toLowerCase());
+                const newVal = (cmd === 'MOVE' || cmd === 'JOIN') ? cmd.toLowerCase() + " " : cmd.toLowerCase();
+                
+                // Update the DOM input directly so it's the source of truth
+                if (this.mobileInput) {
+                    this.mobileInput.value = newVal;
+                    this.currentInput = newVal;
+                } else {
+                    this.currentInput = newVal;
+                }
+
+                if (cmd !== 'MOVE' && cmd !== 'JOIN') {
+                    this.processCommand(this.currentInput);
+                }
                 this.updatePrompt();
             });
         });
@@ -444,6 +443,20 @@ class MainScene extends Phaser.Scene {
         } else {
             this.logMessage(`ERROR: UPLINK OFFLINE. COMMAND DROPPED.`, COLORS.RED);
         }
+
+        // Clear State
+        this.currentInput = "";
+        if (this.mobileInput) {
+            this.mobileInput.value = "";
+            // Buffer Clearing Trick: Blur and focus to reset predictive text buffers
+            this.mobileInput.blur();
+            setTimeout(() => {
+                if (this.mobileInput && !this.gameState.isGameOver) {
+                    this.mobileInput.focus();
+                }
+            }, 50);
+        }
+        this.updatePrompt();
 
         /* 
         // --- OLD LOCAL LOGIC COMMENTED OUT FOR MMO PHASE 1 ---
