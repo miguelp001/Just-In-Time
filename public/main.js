@@ -119,11 +119,6 @@ class MainScene extends Phaser.Scene {
         this.mobileInput = document.getElementById('mobile-input');
         
         this.input.keyboard.on('keydown', (event) => {
-            // Prevent default browser actions for space and backspace
-            if (event.keyCode === 32 || event.keyCode === 8) {
-                event.preventDefault();
-            }
-
             if (event.keyCode === 13) {
                 // Enter
                 if (this.currentInput.trim().length > 0) {
@@ -131,8 +126,10 @@ class MainScene extends Phaser.Scene {
                 }
             }
             
-            // All alphanumeric and backspace input is now handled entirely by 
-            // the 'input' event on the mobileInput element to ensure DOM sync.
+            // All alphanumeric, space, and backspace input is now handled natively 
+            // by the 'input' event on the mobileInput element. 
+            // We do NOT preventDefault here so the browser can update the DOM value.
+            
             if (!this.gameState.isGameOver) {
                  this.updatePrompt();
             }
