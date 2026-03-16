@@ -53,10 +53,10 @@ const GAME_EVENTS = [
                 description: "Attempt to sync engines with the rhythm (Risk: Mod)",
                 execute: (ship, player, broadcast) => {
                     if (Math.random() > 0.4) {
-                        ship.fuel.current = Math.min(ship.fuel.max, ship.fuel.current + 20);
+                        ship.fuel = Math.min(80, ship.fuel + 20);
                         broadcast("ENGINES SYNCED. Siphoned temporal energy into the fuel reserves. (+20 Fuel)", COLORS.GREEN);
                     } else {
-                        ship.energy.current -= 15;
+                        ship.energy -= 15;
                         broadcast("SYNC FAILED. The rhythmic feedback drained ship capacitors. (-15 Energy)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
@@ -82,7 +82,7 @@ const GAME_EVENTS = [
                 command: "allow",
                 description: "Drop shields and let the dust cling to the hull",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current = Math.min(ship.hull.max, ship.hull.current + 10);
+                    ship.hull = Math.min(100, ship.hull + 10);
                     broadcast("The dust settles into micro-fractures, solidifying and repairing the plating! (+10 Hull)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
@@ -93,7 +93,7 @@ const GAME_EVENTS = [
                 description: "Boost shields to repel the dust (-5 Energy)",
                 execute: (ship, player, broadcast) => {
                     if (ship.energy.current >= 5) {
-                        ship.energy.current -= 5;
+                        ship.energy -= 5;
                         broadcast("Shields flared. The dust scatters harmlessly into the void.", COLORS.GRAY);
                     } else {
                         broadcast("Not enough energy to repel. The dust clings to the ship, but finds no damage to repair.", COLORS.GRAY);
@@ -115,7 +115,7 @@ const GAME_EVENTS = [
                 description: "Dock and search for valuables (-10 Energy)",
                 execute: (ship, player, broadcast) => {
                     if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
+                        ship.energy -= 10;
                         const foundCredits = Math.floor(Math.random() * 50) + 20;
                         ship.credits += foundCredits;
                         broadcast(`You force the airlocks open. Found an unattended high-roller table with ${foundCredits} Credits!`, COLORS.GREEN);
@@ -147,7 +147,7 @@ const GAME_EVENTS = [
                 description: "Fire mining lasers to melt the ice (-10 Energy)",
                 execute: (ship, player, broadcast) => {
                     if (ship.energy.current >= 10) {
-                        ship.energy.current -= 10;
+                        ship.energy -= 10;
                         ship.scrap += 15;
                         broadcast("The ice shatters, allowing you to salvage 15 Scrap from the hull.", COLORS.GREEN);
                     } else {
@@ -178,11 +178,11 @@ const GAME_EVENTS = [
                 description: "Divert all auxiliary power to structural integrity (-15 Energy)",
                 execute: (ship, player, broadcast) => {
                     if (ship.energy.current >= 15) {
-                        ship.energy.current -= 15;
+                        ship.energy -= 15;
                         broadcast("Shields hold against the brunt of the radiation. The ship groans but survives unscathed.", COLORS.GREEN);
                     } else {
                         broadcast("Insufficient energy to reinforce shields! The flare scorches the hull.", COLORS.RED);
-                        ship.hull.current -= 25;
+                        ship.hull -= 25;
                     }
                     ship.currentEncounter = null;
                 }
@@ -191,7 +191,7 @@ const GAME_EVENTS = [
                 command: "ignore",
                 description: "Take the hit to save energy (Takes 25 Hull DMG)",
                 execute: (ship, player, broadcast) => {
-                    ship.hull.current -= 25;
+                    ship.hull -= 25;
                     broadcast("The radiation flare scorches the hull. Warning sirens blare. (-25 Hull)", COLORS.RED);
                     ship.currentEncounter = null;
                 }
@@ -225,7 +225,7 @@ const GAME_EVENTS = [
                         ship.credits += credits;
                         broadcast(`Success! Found Corpo bearer bonds worth ${credits} Cr.`, COLORS.GREEN);
                     } else {
-                        ship.hull.current -= 10;
+                        ship.hull -= 10;
                         broadcast("BOOBY TRAP! The pod detonates, damaging the tugboat! (-10 Hull)", COLORS.RED);
                     }
                     ship.currentEncounter = null;
@@ -251,7 +251,7 @@ const GAME_EVENTS = [
                     } else {
                         broadcast("You don't have enough Credits to pay!", COLORS.RED);
                         broadcast("The Miners are annoyed and tell you to take the long way around. (-10 Fuel)", COLORS.YELLOW);
-                        ship.fuel.current -= 10;
+                        ship.fuel -= 10;
                     }
                     ship.currentEncounter = null;
                 }
@@ -1142,7 +1142,7 @@ const GAME_EVENTS = [
                 description: "Bring them aboard (-10 Energy)",
                 execute: (ship, player, broadcast) => {
                     ship.energy -= 10;
-                    ship.hull = Math.min(ship.maxHull || 100, (ship.hull !== undefined ? ship.hull : 100) + 20);
+                    ship.hull = Math.min(100, (ship.hull || 100) + 20);
                     broadcast("The survivor fixed your main couplings! (+20 Hull, -10 Energy)", COLORS.GREEN);
                     ship.currentEncounter = null;
                 }
@@ -1296,7 +1296,7 @@ const GAME_EVENTS = [
                 execute: (ship, player, broadcast) => {
                     if (ship.fuel >= 15) {
                         ship.fuel -= 15;
-                        ship.hull = Math.min(ship.maxHull || 100, (ship.hull !== undefined ? ship.hull : 100) + 40);
+                        ship.hull = Math.min(100, (ship.hull || 100) + 40);
                         broadcast("They bless your ship. Hull plates glow with peace. (+40 Hull, -15 Fuel)", COLORS.GREEN);
                     } else {
                         broadcast("Not enough fuel.", COLORS.RED);

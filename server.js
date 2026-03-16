@@ -53,7 +53,8 @@ generateGalaxy();
 // Game State
 const players = {};
 const ships = {};
-const pendingRequests = {}; // Keyed by ship ID, array of player IDs requesting to join
+const wrecks = {}; // Keyed by sector ID, array of wreck objects
+const pendingRequests = {}; 
 let connectionCount = 0;
 let shipCounter = 1;
 
@@ -118,7 +119,9 @@ io.on('connection', (socket) => {
                         'Cargo Bay': 0,
                         'Engineering': 0
                     },
-                    crew: [socket.id]
+                    crew: [socket.id],
+                    sosSent: false,
+                    upgrades: []
                 };
                 
                 player.state = 'IN_GAME';
@@ -399,6 +402,34 @@ io.on('connection', (socket) => {
                 socket.emit('log', { message: `--- LONG RANGE SCANNERS ---`, color: '#FFFF00' });
                 socket.emit('log', { message: `Current Sector: ${ship.sector}`, color: '#FFFFFF' });
                 socket.emit('log', { message: `Linked Jump Points: ${sectorData.links.join(', ')}`, color: '#00FFFF' });
+                
+                // Report Wrecks
+                const localWrecks = wrecks[ship.sector];
+                if (localWrecks && localWrecks.length > 0) {
+                    socket.emit('log', { message: `[!] HEAVILY DAMAGED WRECKAGE DETECTED. Type 'salvage' to recover materials.`, color: '#FF00FF' });
+                }
+            }
+        }
+        else if (mainCmd === 'salvage') {
+            if (player.room !== ROOMS['cargo']) {
+                socket.emit('log', { message: "ERROR: SALVAGE COMMAND MUST BE EXECUTED FROM CARGO BAY.", color: '#FF0000' });
+                return;
+            }
+            const ship = ships[player.shipId];
+            const localWrecks = wrecks[ship.sector];
+            
+            if (localWrecks && localWrecks.length > 0) {
+                const wreck = localWrecks.shift(); // Salvage the first one
+                ship.scrap += wreck.scrap;
+                if (wreck.modules.length > 0) {
+                    ship.upgrades.push(...wreck.modules);
+                }
+                
+                broadcast(`[CARGO] ${player.name} salvaged ${wreck.name}. Recovered ${wreck.scrap} Scrap and ${wreck.modules.length} modules!`, '#00FF00');
+                
+                if (localWrecks.length === 0) delete wrecks[ship.sector];
+            } else {
+                socket.emit('log', { message: "ERROR: NO SALVAGEABLE WRECKAGE DETECTED IN THIS SECTOR.", color: '#FF0000' });
             }
         }
         else if (mainCmd === 'jump') {
@@ -666,6 +697,48 @@ function destroyShip(shipId) {
     // Cleanup
     delete ships[shipId];
     delete pendingRequests[shipId];
+
+    // Spawn Wreck
+    if (!wrecks[ship.sector]) wrecks[ship.sector] = [];
+    
+    // Recover 25% of modules
+    const recoveredModules = [];
+    if (ship.upgrades && ship.upgrades.length > 0) {
+        const numToRecover = Math.max(1, Math.floor(ship.upgrades.length * 0.25));
+        const shuffled = [...ship.upgrades].sort(() => 0.5 - Math.random());
+        recoveredModules.push(...shuffled.slice(0, numToRecover));
+    }
+
+    wrecks[ship.sector].push({
+        name: `Wreck of ${ship.name}`,
+        originName: ship.name,
+        scrap: ship.scrap + 20,
+        modules: recoveredModules,
+        sector: ship.sector
+    });
+}
+
+function checkSOS(ship) {
+    if (ship.hull < 25 && !ship.sosSent) {
+        ship.sosSent = true;
+        const sectorData = galaxy[ship.sector];
+        if (!sectorData) return;
+        
+        const adjacentSectors = sectorData.links;
+        
+        // Notify all players in adjacent sectors
+        Object.values(players).forEach(p => {
+            if (p.state === 'IN_GAME' && p.shipId) {
+                const playerShip = ships[p.shipId];
+                if (playerShip && playerShip.id !== ship.id && adjacentSectors.includes(playerShip.sector)) {
+                    io.to(p.id).emit('log', { 
+                        message: `\n[!] EMERGENCY: CRITICAL HULL COLLAPSE DETECTED ON ${ship.name} (${ship.id}) in Sector ${ship.sector}.`, 
+                        color: '#FF00FF' 
+                    });
+                }
+            }
+        });
+    }
 }
 
 // --- SERVER TICK LOOP ---
@@ -704,7 +777,7 @@ setInterval(() => {
         if (tickCounter % 3 === 0 && ship.currentEncounter && ship.currentEncounter.type === 'ship' && Object.keys(players).some(p => players[p].shipId === ship.id && players[p].state === 'IN_GAME')) {
              if (Math.random() > 0.3) {
                  const enemyDmg = Math.floor(Math.random() * 10) + 5;
-                 ship.hull -= enemyDmg;
+                 ship.hull -= enemyDmg; if (typeof checkSOS === "function") checkSOS(ship);
                  ship.crew.forEach(memberId => {
                      io.to(memberId).emit('log', { message: `[!] ${ship.currentEncounter.name.toUpperCase()} FIRED ON US! Took ${enemyDmg} DMG!`, color: '#FF0000' });
                  });
