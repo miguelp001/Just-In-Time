@@ -135,11 +135,11 @@ io.on('connection', (socket) => {
             else if (mainCmd === 'ships') {
                 const activeShips = Object.values(ships);
                 if (activeShips.length === 0) {
-                    socket.emit('log', { message: `No active ships in the sector.`, color: '#AAAAAA' });
+                    socket.emit('log', { message: `No active ships in the nebula.`, color: '#AAAAAA' });
                 } else {
                     socket.emit('log', { message: `--- ACTIVE VESSELS ---`, color: '#FFFF00' });
                     activeShips.forEach(s => {
-                        socket.emit('log', { message: `[${s.id}] ${s.name} - Crew: ${s.crew.length}/4`, color: '#FFFFFF' });
+                        socket.emit('log', { message: `[${s.id}] ${s.name} - Crew: ${s.crew.length}/4 - Sector: ${s.sector}`, color: '#FFFFFF' });
                     });
                 }
             }
@@ -569,6 +569,17 @@ io.on('connection', (socket) => {
                 const status = (p.shipId === player.shipId) ? 'CREWMATE' : (p.state === 'LOBBY' ? 'LOBBY' : `ABOARD ${p.shipId}`);
                 socket.emit('log', { message: `[${p.id.slice(0, 4)}] ${p.name} - STATUS: ${status}`, color: '#FFFFFF' });
             });
+        }
+        else if (mainCmd === 'ships') {
+            const activeShips = Object.values(ships);
+            if (activeShips.length === 0) {
+                socket.emit('log', { message: `No active ships in the nebula.`, color: '#AAAAAA' });
+            } else {
+                socket.emit('log', { message: `--- ACTIVE VESSELS ---`, color: '#FFFF00' });
+                activeShips.forEach(s => {
+                    socket.emit('log', { message: `[${s.id}] ${s.name} - Crew: ${s.crew.length}/4 - Sector: ${s.sector}`, color: '#FFFFFF' });
+                });
+            }
         }
         else if (mainCmd === 'map') {
             socket.emit('log', { message: `--- SEARCHING DISCOVERED SECTORS ---`, color: '#00FFFF' });
