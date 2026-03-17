@@ -2037,8 +2037,6 @@ export default {
             return obj.fetch(request);
         }
         
-        // This worker is used with 'assets' in wrangler.toml, so we shouldn't 
-        // need to handle static assets here unless we want to.
-        return new Response("Not found", { status: 404 });
+        // Asset serving is handled by Cloudflare's asset server when we don't return a response.
     }
 }

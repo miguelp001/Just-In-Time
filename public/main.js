@@ -181,53 +181,67 @@ class MainScene extends Phaser.Scene {
     connectToServer() {
         this.logMessage(`INITIALIZING NEBULA UPLINK...`, COLORS.CYAN);
         
-        // Use Socket.IO instead of raw WebSockets
-        this.socket = io();
+        // Protocol-aware WebSocket URL
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        this.socket = new WebSocket(wsUrl);
 
-        this.socket.on('connect', () => {
+        this.socket.onopen = () => {
             this.logMessage(`Uplink secured. Ready.`, COLORS.GREEN);
             this.socket.connected = true; 
             
             // --- PERSISTENCE: Send init with saved token ---
             const savedId = localStorage.getItem('jit_player_id');
-            this.socket.emit('command', `init ${savedId || ''}`);
-        });
+            this.socket.send(JSON.stringify({ 
+                type: 'init', 
+                playerId: savedId || '' 
+            }));
+        };
 
-        this.socket.on('log', (data) => {
-            if (data.message) {
-                this.logMessage(data.message, data.color || COLORS.WHITE);
+        this.socket.onmessage = (event) => {
+            try {
+                const packet = JSON.parse(event.data);
+                const { type, data } = packet;
+
+                switch (type) {
+                    case 'log':
+                        if (data.message) {
+                            this.logMessage(data.message, data.color || COLORS.WHITE);
+                        }
+                        break;
+                    case 'identity':
+                        localStorage.setItem('jit_player_id', data.id);
+                        this.logMessage(`IDENTITY RECOGNIZED: ${data.id.slice(0, 8)}...`, COLORS.GREEN);
+                        break;
+                    case 'chat':
+                        this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
+                        break;
+                    case 'update_ui':
+                        this.handleUpdateUI(data);
+                        break;
+                    case 'ship_sync':
+                        this.handleShipSync(data);
+                        break;
+                    case 'update_sector':
+                        this.handleUpdateSector(data);
+                        break;
+                }
+            } catch (err) {
+                console.error("Failed to parse server message:", err);
             }
-        });
+        };
 
-        this.socket.on('identity', (data) => {
-            localStorage.setItem('jit_player_id', data.id);
-            this.logMessage(`IDENTITY RECOGNIZED: ${data.id.slice(0, 8)}...`, COLORS.GREEN);
-        });
-
-        this.socket.on('chat', (data) => {
-            this.logMessage(`[COMM - ${data.ship}] ${data.sender}: "${data.text}"`, data.color || COLORS.CYAN);
-        });
-
-        this.socket.on('update_ui', (data) => {
-            this.handleUpdateUI(data);
-        });
-
-        this.socket.on('ship_sync', (data) => {
-            this.handleShipSync(data);
-        });
-
-        this.socket.on('update_sector', (data) => {
-            this.handleUpdateSector(data);
-        });
-
-        this.socket.on('connect_error', (err) => {
-            console.warn("Connection failed.");
+        this.socket.onerror = (err) => {
+            console.warn("Connection failed.", err);
             this.logMessage("UPLINK OFFLINE. SECURE LINK FAILED.", COLORS.YELLOW);
-        });
+        };
 
-        this.socket.on('disconnect', () => {
-             this.logMessage("LINK SEVERED. ATTEMPTING RECONNECT...", COLORS.RED);
-        });
+        this.socket.onclose = () => {
+            this.socket.connected = false;
+            this.logMessage("LINK SEVERED. ATTEMPTING RECONNECT...", COLORS.RED);
+            // Optional: Implement auto-reconnect logic here
+            setTimeout(() => this.connectToServer(), 3000);
+        };
     }
 
     handleUpdateUI(data) {
@@ -440,9 +454,12 @@ class MainScene extends Phaser.Scene {
         // Echo the command to the local log
         this.logMessage(cmd, COLORS.GRAY); 
 
-        // MMO PHASE 1: Forward ALL input directly to the Server
-        if (this.socket && this.socket.connected) {
-            this.socket.emit('command', cmd);
+        // Raw WebSocket Command Send
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({ 
+                type: 'command', 
+                cmd: cmd 
+            }));
         } else {
             this.logMessage(`ERROR: UPLINK OFFLINE. COMMAND DROPPED.`, COLORS.RED);
         }
